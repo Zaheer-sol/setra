@@ -8,7 +8,7 @@
 # The services reach each other over their public https URLs (free instances can't receive
 # private-network traffic). The web app gets the API's host from Render; WEB_ORIGIN below must
 # match the web service's URL.
-# Render generates SESSION_SECRET and ENCRYPTION_KEY; nothing needs entering by hand.
+# Render generates SESSION_SECRET and the encryption key; nothing needs entering by hand.
 
 databases:
   - name: setra-db
@@ -46,7 +46,9 @@ services:
           property: connectionString
       - key: SESSION_SECRET
         generateValue: true
-      - key: ENCRYPTION_KEY
+      # Generated under its own name so Render creates it fresh; the app uses it when ENCRYPTION_KEY
+      # isn't a valid key. Keep it: changing it makes stored webhook secrets unreadable.
+      - key: ENCRYPTION_KEY_GENERATED
         generateValue: true
       - key: DEMO_SEED_ENABLED
         value: "true"

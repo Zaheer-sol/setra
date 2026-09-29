@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { z } from "zod";
 
 const DEV_SESSION_SECRET = "development-only-session-secret-do-not-use-in-production";
@@ -13,6 +14,8 @@ const schema = z.object({
   DB_POOL_SIZE: z.coerce.number().int().positive().default(10),
   SESSION_SECRET: z.string().optional(),
   ENCRYPTION_KEY: z.string().optional(),
+  /** A key the host generates (render.yaml), used when ENCRYPTION_KEY isn't set to a valid key. */
+  ENCRYPTION_KEY_GENERATED: z.string().optional(),
   /** Which proxy hops may set X-Forwarded-For (proxy-addr syntax). Default: only private/loopback peers, e.g. the web proxy. */
   TRUST_PROXY: z.string().default("loopback,linklocal,uniquelocal"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
@@ -43,12 +46,23 @@ let cached: AppEnv | undefined;
  * A 256-bit key as 64 hex characters, or as base64 (the format hosts like Render generate). Returns
  * it as hex, or undefined when it isn't exactly 32 bytes.
  */
-export function parseEncryptionKey(value: string | undefined): string | undefined {
+export function parseEncryptionKey(raw: string | undefined): string | undefined {
+  const value = raw?.trim();
   if (!value) return undefined;
   if (/^[0-9a-fA-F]{64}$/.test(value)) return value;
   if (!/^[A-Za-z0-9+/_-]{43}=?$/.test(value)) return undefined;
   const bytes = Buffer.from(value, "base64");
   return bytes.length === 32 ? bytes.toString("hex") : undefined;
+}
+
+/**
+ * The key from a host-generated secret: used directly when it's already a 32-byte key, otherwise
+ * derived with SHA-256 as long as it has at least 32 characters of generated randomness.
+ */
+export function generatedEncryptionKey(raw: string | undefined): string | undefined {
+  const value = raw?.trim();
+  if (!value) return undefined;
+  return parseEncryptionKey(value) ?? (value.length >= 32 ? createHash("sha256").update(`setra-encryption-key:${value}`).digest("hex") : undefined);
 }
 
 /**
@@ -60,7 +74,7 @@ export function appEnv(source: Record<string, string | undefined> = process.env)
   const parsed = schema.parse(source);
   const isProduction = parsed.NODE_ENV === "production";
   const sessionSecret = parsed.SESSION_SECRET && !parsed.SESSION_SECRET.startsWith("replace-") ? parsed.SESSION_SECRET : undefined;
-  const encryptionKey = parseEncryptionKey(parsed.ENCRYPTION_KEY);
+  const encryptionKey = parseEncryptionKey(parsed.ENCRYPTION_KEY) ?? generatedEncryptionKey(parsed.ENCRYPTION_KEY_GENERATED);
   if (isProduction) {
     if (!sessionSecret || sessionSecret.length < 32) throw new Error("SESSION_SECRET must be set to at least 32 random characters in production");
     if (!encryptionKey) throw new Error("ENCRYPTION_KEY must be 32 random bytes in production: 64 hexadecimal characters or base64");
