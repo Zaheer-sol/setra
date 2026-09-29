@@ -26,11 +26,8 @@ const { randomToken, sha256Hex } = await import("@setra/security");
 engine.setLogger(engine.silentLogger);
 
 const OWNER_EMAIL = process.env.DEMO_OWNER_EMAIL?.trim().toLowerCase() || "owner@acme.test";
+// The hosted demo keeps the same documented demo login as local unless DEMO_OWNER_PASSWORD overrides it.
 const OWNER_PASSWORD = process.env.DEMO_OWNER_PASSWORD || "SetraDemo!2026";
-if (productionSeed && !process.env.DEMO_OWNER_PASSWORD) {
-  console.error("Set DEMO_OWNER_PASSWORD to a unique password before seeding the public demo.");
-  process.exit(1);
-}
 if (productionSeed && OWNER_PASSWORD.length < 14) {
   console.error("DEMO_OWNER_PASSWORD must contain at least 14 characters.");
   process.exit(1);
@@ -200,7 +197,7 @@ if (productionSeed) {
 Seeded public demo workspace "Acme Infrastructure" (test mode, simulated payments only).
 
   Sign in email:    ${OWNER_EMAIL}
-  Password:         configured with DEMO_OWNER_PASSWORD (not printed)
+  Password:         ${process.env.DEMO_OWNER_PASSWORD ? "set by DEMO_OWNER_PASSWORD" : "the standard demo password (see README)"} (not printed)
 
 No API key or webhook secret was printed. For a real Monad testnet payment, add your own testnet
 wallet in the console and pay an invoice from the hosted payment page with testnet USDC.

@@ -48,7 +48,7 @@ services:
       - key: ENCRYPTION_KEY
         sync: false
       - key: DEMO_SEED_ENABLED
-        sync: false
+        value: "true"
       - key: DEMO_OWNER_EMAIL
         value: owner@acme.test
       - key: DEMO_OWNER_PASSWORD

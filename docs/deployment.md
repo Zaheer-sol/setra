@@ -67,14 +67,17 @@ Secrets belong in your platform's secret store, never in images or the repositor
 ## Persistent Render demo
 
 Setra's demo is stored in PostgreSQL, not in the web service filesystem. Render redeploys therefore
-do not remove it. To create the same **Acme Infrastructure** demo used locally, set these secret
-environment variables on `setra-api` and deploy once:
+do not remove it. To create the same **Acme Infrastructure** demo used locally, set these
+environment variables on `setra-api` (`render.yaml` already does) and deploy once:
 
 ```text
 DEMO_SEED_ENABLED=true
 DEMO_OWNER_EMAIL=owner@acme.test
-DEMO_OWNER_PASSWORD=<a unique password with at least 14 characters>
 ```
+
+The demo account then uses the same sign-in as local development (see the README). Anyone who knows
+it can open the demo workspace, which holds only simulated test-mode data. To use a different
+password, set `DEMO_OWNER_PASSWORD` (at least 14 characters) before the first seed.
 
 The API start command runs both demo seeders. They are idempotent: once the demo user, workspace and
 books exist, later deploys leave them unchanged. The public demo is test mode and all seeded chain
