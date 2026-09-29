@@ -1,4 +1,6 @@
-# Render blueprint for a testnet demo on free instances.
+# Render blueprint for a testnet demo. The web services can use free instances, but a free Render
+# Postgres database expires after 30 days. Upgrade setra-db to at least 0.1c-256mb in the Render
+# dashboard if the demo must remain until you deliberately remove it.
 # Free plans have no background workers, so the ingestion worker runs next to the API in one
 # service. Free web services sleep after 15 idle minutes; on wake the worker catches up from the
 # last scanned block. The free database expires after 30 days.
@@ -23,8 +25,11 @@ services:
       && node scripts/build-service.mjs apps/api/src/main.ts apps/api/dist/main.js
       && node scripts/build-service.mjs apps/worker/src/main.ts apps/worker/dist/main.js
       && node scripts/build-service.mjs packages/database/src/migrate.ts packages/database/dist/migrate.js
+      && node scripts/build-service.mjs packages/database/src/seed.ts packages/database/dist/seed.js
+      && node scripts/build-service.mjs packages/database/src/seed-books.ts packages/database/dist/seed-books.js
     startCommand: >-
       node packages/database/dist/migrate.js
+      && { if [ "$DEMO_SEED_ENABLED" = "true" ]; then node packages/database/dist/seed.js && node packages/database/dist/seed-books.js; fi; }
       && { node apps/worker/dist/main.js & exec node apps/api/dist/main.js; }
     healthCheckPath: /v1/health/live
     envVars:
@@ -41,6 +46,12 @@ services:
       - key: SESSION_SECRET
         generateValue: true
       - key: ENCRYPTION_KEY
+        sync: false
+      - key: DEMO_SEED_ENABLED
+        sync: false
+      - key: DEMO_OWNER_EMAIL
+        value: owner@acme.test
+      - key: DEMO_OWNER_PASSWORD
         sync: false
       - key: WEB_ORIGIN
         sync: false

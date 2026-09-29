@@ -13,8 +13,9 @@ import { loadEnvFile } from "./load-env";
  */
 
 loadEnvFile();
-if (process.env.NODE_ENV === "production") {
-  console.error("Refusing to seed demo data in production.");
+const productionSeed = process.env.NODE_ENV === "production";
+if (productionSeed && process.env.DEMO_SEED_ENABLED !== "true") {
+  console.error("Refusing to seed demo data in production unless DEMO_SEED_ENABLED=true.");
   process.exit(1);
 }
 
@@ -24,8 +25,16 @@ const { newId } = await import("@setra/schemas");
 const { randomToken, sha256Hex } = await import("@setra/security");
 engine.setLogger(engine.silentLogger);
 
-const OWNER_EMAIL = "owner@acme.test";
-const OWNER_PASSWORD = "SetraDemo!2026"; // development only
+const OWNER_EMAIL = process.env.DEMO_OWNER_EMAIL?.trim().toLowerCase() || "owner@acme.test";
+const OWNER_PASSWORD = process.env.DEMO_OWNER_PASSWORD || "SetraDemo!2026";
+if (productionSeed && !process.env.DEMO_OWNER_PASSWORD) {
+  console.error("Set DEMO_OWNER_PASSWORD to a unique password before seeding the public demo.");
+  process.exit(1);
+}
+if (productionSeed && OWNER_PASSWORD.length < 14) {
+  console.error("DEMO_OWNER_PASSWORD must contain at least 14 characters.");
+  process.exit(1);
+}
 const DAY = 86_400_000;
 const now = Date.now();
 const ago = (days: number, hours = 0) => new Date(now - days * DAY - hours * 3_600_000);
@@ -181,11 +190,23 @@ const summary = await withTenant(orgId, async (c) => {
   return { keySecret, webhookSecret: secret.secret, wallet: wallet.address };
 });
 
-// The local webhook receiver reads this file so it can verify signatures. Never commit it.
-writeFileSync(resolve(process.cwd(), ".setra-demo-webhook-secret"), summary.webhookSecret + "\n", { mode: 0o600 });
+// The local webhook receiver reads this file so it can verify signatures. Render's filesystem is
+// ephemeral and production secrets must not be written to it or printed in deploy logs.
+if (!productionSeed) writeFileSync(resolve(process.cwd(), ".setra-demo-webhook-secret"), summary.webhookSecret + "\n", { mode: 0o600 });
 await closePools();
 
-console.log(`
+if (productionSeed) {
+  console.log(`
+Seeded public demo workspace "Acme Infrastructure" (test mode, simulated payments only).
+
+  Sign in email:    ${OWNER_EMAIL}
+  Password:         configured with DEMO_OWNER_PASSWORD (not printed)
+
+No API key or webhook secret was printed. For a real Monad testnet payment, add your own testnet
+wallet in the console and pay an invoice from the hosted payment page with testnet USDC.
+`);
+} else {
+  console.log(`
 Seeded demo workspace "Acme Infrastructure" (test mode, simulated payments only).
 
   Sign in:          ${OWNER_EMAIL} / ${OWNER_PASSWORD}   (development only)
@@ -195,3 +216,4 @@ Seeded demo workspace "Acme Infrastructure" (test mode, simulated payments only)
 For a real Monad testnet payment, add your own testnet wallet in the console and pay an invoice
 from the hosted payment page with testnet USDC (faucet.circle.com).
 `);
+}

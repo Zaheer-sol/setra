@@ -11,8 +11,8 @@ import { loadEnvFile } from "./load-env";
  */
 
 loadEnvFile();
-if (process.env.NODE_ENV === "production") {
-  console.error("Refusing to seed demo data in production.");
+if (process.env.NODE_ENV === "production" && process.env.DEMO_SEED_ENABLED !== "true") {
+  console.error("Refusing to seed demo data in production unless DEMO_SEED_ENABLED=true.");
   process.exit(1);
 }
 

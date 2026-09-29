@@ -64,6 +64,31 @@ All variables are documented in `.env.example`. Required in production:
 
 Secrets belong in your platform's secret store, never in images or the repository.
 
+## Persistent Render demo
+
+Setra's demo is stored in PostgreSQL, not in the web service filesystem. Render redeploys therefore
+do not remove it. To create the same **Acme Infrastructure** demo used locally, set these secret
+environment variables on `setra-api` and deploy once:
+
+```text
+DEMO_SEED_ENABLED=true
+DEMO_OWNER_EMAIL=owner@acme.test
+DEMO_OWNER_PASSWORD=<a unique password with at least 14 characters>
+```
+
+The API start command runs both demo seeders. They are idempotent: once the demo user, workspace and
+books exist, later deploys leave them unchanged. The public demo is test mode and all seeded chain
+activity is explicitly labelled simulated. Production deploy logs never print its password, API key
+or webhook secret.
+
+**Do not rely on a free Render Postgres database for a durable demo.** Free databases expire after
+30 days and have no managed backups. Upgrade `setra-db` in the Render dashboard to at least the
+`0.1c-256mb` paid Postgres plan. The API and web services may remain on their free plans if sleeping
+and cold starts are acceptable.
+
+Before deliberately deleting the demo, first set `DEMO_SEED_ENABLED=false` and redeploy. Otherwise a
+later API restart will recreate it. This opt-in flag is deliberately separate from `NODE_ENV`.
+
 ## Monad execution events (optional)
 
 Faster detection needs a Monad full node on the same host as the sidecar
