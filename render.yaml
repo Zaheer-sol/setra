@@ -5,9 +5,9 @@
 # service. Free web services sleep after 15 idle minutes; on wake the worker catches up from the
 # last scanned block. The free database expires after 30 days.
 #
-# After the first deploy, set WEB_ORIGIN and PUBLIC_APP_URL on setra-api to the web service's
-# https URL, and API_INTERNAL_URL on setra-web to the API's https URL (free instances can't
-# receive private-network traffic). ENCRYPTION_KEY is yours to enter: openssl rand -hex 32.
+# The services reach each other over their public https URLs (free instances can't receive
+# private-network traffic). If Render gave a service a different URL, change it here.
+# ENCRYPTION_KEY is yours to enter: openssl rand -hex 32.
 
 databases:
   - name: setra-db
@@ -54,9 +54,9 @@ services:
       - key: DEMO_OWNER_PASSWORD
         sync: false
       - key: WEB_ORIGIN
-        sync: false
+        value: https://setra-web.onrender.com
       - key: PUBLIC_APP_URL
-        sync: false
+        value: https://setra-web.onrender.com
       - key: MONAD_ENABLED
         value: "false"
       - key: MONAD_TESTNET_ENABLED
@@ -81,6 +81,6 @@ services:
       - key: NODE_ENV
         value: production
       - key: API_INTERNAL_URL
-        sync: false
+        value: https://setra-api.onrender.com
       - key: NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID
         sync: false
