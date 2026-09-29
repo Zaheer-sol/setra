@@ -40,6 +40,18 @@ export type AppEnv = z.infer<typeof schema> & {
 let cached: AppEnv | undefined;
 
 /**
+ * A 256-bit key as 64 hex characters, or as base64 (the format hosts like Render generate). Returns
+ * it as hex, or undefined when it isn't exactly 32 bytes.
+ */
+export function parseEncryptionKey(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  if (/^[0-9a-fA-F]{64}$/.test(value)) return value;
+  if (!/^[A-Za-z0-9+/_-]{43}=?$/.test(value)) return undefined;
+  const bytes = Buffer.from(value, "base64");
+  return bytes.length === 32 ? bytes.toString("hex") : undefined;
+}
+
+/**
  * Validated runtime configuration. Development gets safe local defaults; production refuses to
  * start without real secrets so a misconfigured deploy fails loudly instead of running insecurely.
  */
@@ -48,10 +60,10 @@ export function appEnv(source: Record<string, string | undefined> = process.env)
   const parsed = schema.parse(source);
   const isProduction = parsed.NODE_ENV === "production";
   const sessionSecret = parsed.SESSION_SECRET && !parsed.SESSION_SECRET.startsWith("replace-") ? parsed.SESSION_SECRET : undefined;
-  const encryptionKey = parsed.ENCRYPTION_KEY && /^[0-9a-fA-F]{64}$/.test(parsed.ENCRYPTION_KEY) ? parsed.ENCRYPTION_KEY : undefined;
+  const encryptionKey = parseEncryptionKey(parsed.ENCRYPTION_KEY);
   if (isProduction) {
     if (!sessionSecret || sessionSecret.length < 32) throw new Error("SESSION_SECRET must be set to at least 32 random characters in production");
-    if (!encryptionKey) throw new Error("ENCRYPTION_KEY must be 64 hexadecimal characters in production");
+    if (!encryptionKey) throw new Error("ENCRYPTION_KEY must be 32 random bytes in production: 64 hexadecimal characters or base64");
     if (!parsed.DATABASE_URL) throw new Error("DATABASE_URL is required in production");
   }
   const env: AppEnv = {

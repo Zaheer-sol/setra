@@ -13,8 +13,20 @@ export const runtime = "nodejs";
 
 const HOP_BY_HOP = new Set(["host", "connection", "content-length", "transfer-encoding", "keep-alive", "upgrade", "proxy-connection", "te", "trailer"]);
 
+/**
+ * API_INTERNAL_URL is normally a full URL. A bare host is also accepted: with a dot it's used over
+ * https, and without one it's a Render service host (render.yaml passes the API's), reached at its
+ * public https://<host>.onrender.com address because free instances can't receive private traffic.
+ */
+function apiBase(value = process.env.API_INTERNAL_URL): string {
+  const v = (value ?? "").trim().replace(/\/$/, "");
+  if (!v) return "http://localhost:4000";
+  if (/^https?:\/\//.test(v)) return v;
+  return v.includes(".") ? `https://${v}` : `https://${v}.onrender.com`;
+}
+
 async function proxy(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
-  const base = (process.env.API_INTERNAL_URL ?? "http://localhost:4000").replace(/\/$/, "");
+  const base = apiBase();
   const { path } = await context.params;
   const target = `${base}/${path.map(encodeURIComponent).join("/")}${request.nextUrl.search}`;
 

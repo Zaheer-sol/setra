@@ -54,7 +54,7 @@ All variables are documented in `.env.example`. Required in production:
 | `DATABASE_URL` | api, worker | `setra_app` role |
 | `MIGRATION_DATABASE_URL` | migrate | schema owner |
 | `SESSION_SECRET` | api | ≥ 32 random chars (`openssl rand -base64 48`); the API refuses to start without it |
-| `ENCRYPTION_KEY` | api, worker | 64 hex chars (`openssl rand -hex 32`); encrypts webhook secrets. **Losing it invalidates all webhook secrets**. Rotate endpoints if it must change |
+| `ENCRYPTION_KEY` | api, worker | 32 random bytes as 64 hex chars (`openssl rand -hex 32`) or base64 (Render's generated values); encrypts webhook secrets. **Losing it invalidates all webhook secrets**. Rotate endpoints if it must change |
 | `WEB_ORIGIN`, `PUBLIC_APP_URL` | api | exact console origin (CSRF) and base for payment links |
 | `API_INTERNAL_URL` | web | where Next proxies `/api/*` |
 | `MONAD_RPC_URL` (+ `MONAD_LOGS_BLOCK_RANGE`) | api, worker | use an authenticated provider; set the range to your provider's `eth_getLogs` limit |

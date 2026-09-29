@@ -6,8 +6,9 @@
 # last scanned block. The free database expires after 30 days.
 #
 # The services reach each other over their public https URLs (free instances can't receive
-# private-network traffic). If Render gave a service a different URL, change it here.
-# ENCRYPTION_KEY is yours to enter: openssl rand -hex 32.
+# private-network traffic). The web app gets the API's host from Render; WEB_ORIGIN below must
+# match the web service's URL.
+# Render generates SESSION_SECRET and ENCRYPTION_KEY; nothing needs entering by hand.
 
 databases:
   - name: setra-db
@@ -46,7 +47,7 @@ services:
       - key: SESSION_SECRET
         generateValue: true
       - key: ENCRYPTION_KEY
-        sync: false
+        generateValue: true
       - key: DEMO_SEED_ENABLED
         value: "true"
       - key: DEMO_OWNER_EMAIL
@@ -80,7 +81,11 @@ services:
         value: "22"
       - key: NODE_ENV
         value: production
+      # The API's Render host; the web app reaches it at https://<host>.onrender.com.
       - key: API_INTERNAL_URL
-        value: https://setra-api.onrender.com
+        fromService:
+          type: web
+          name: setra-api
+          property: host
       - key: NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID
         sync: false
