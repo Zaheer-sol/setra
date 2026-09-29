@@ -1,0 +1,75 @@
+# Render blueprint for a testnet demo on free instances.
+# Free plans have no background workers, so the ingestion worker runs next to the API in one
+# service. Free web services sleep after 15 idle minutes; on wake the worker catches up from the
+# last scanned block. The free database expires after 30 days.
+#
+# After the first deploy, set WEB_ORIGIN and PUBLIC_APP_URL on setra-api to the web service's
+# https URL, and API_INTERNAL_URL on setra-web to the API's https URL (free instances can't
+# receive private-network traffic). ENCRYPTION_KEY is yours to enter: openssl rand -hex 32.
+
+databases:
+  - name: setra-db
+    plan: free
+    databaseName: setra
+    user: setra
+
+services:
+  - type: web
+    name: setra-api
+    runtime: node
+    plan: free
+    buildCommand: >-
+      npm ci --include=dev --ignore-scripts
+      && node scripts/build-service.mjs apps/api/src/main.ts apps/api/dist/main.js
+      && node scripts/build-service.mjs apps/worker/src/main.ts apps/worker/dist/main.js
+      && node scripts/build-service.mjs packages/database/src/migrate.ts packages/database/dist/migrate.js
+    startCommand: >-
+      node packages/database/dist/migrate.js
+      && { node apps/worker/dist/main.js & exec node apps/api/dist/main.js; }
+    healthCheckPath: /v1/health/live
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: API_PORT
+        value: "10000"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: setra-db
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: WEB_ORIGIN
+        sync: false
+      - key: PUBLIC_APP_URL
+        sync: false
+      - key: MONAD_ENABLED
+        value: "false"
+      - key: MONAD_TESTNET_ENABLED
+        value: "true"
+      - key: MONAD_TESTNET_RPC_URL
+        value: https://testnet-rpc.monad.xyz
+      - key: MONAD_TESTNET_LOGS_BLOCK_RANGE
+        value: "100"
+      - key: NANSEN_API_KEY
+        sync: false
+
+  - type: web
+    name: setra-web
+    runtime: node
+    plan: free
+    buildCommand: npm ci --include=dev --ignore-scripts && npm run build -w @setra/web
+    startCommand: cd apps/web && npx next start --port $PORT
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: API_INTERNAL_URL
+        sync: false
+      - key: NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID
+        sync: false
