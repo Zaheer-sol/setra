@@ -1,0 +1,49 @@
+{
+  "name": "setra",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Setra \u2014 stablecoin payment operations on Monad. The financial event layer for onchain commerce.",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n api,worker,web -c blue,magenta,green \"npm run dev -w @setra/api\" \"npm run dev -w @setra/worker\" \"npm run dev -w @setra/web\"",
+    "dev:api": "npm run dev -w @setra/api",
+    "dev:worker": "npm run dev -w @setra/worker",
+    "dev:web": "npm run dev -w @setra/web",
+    "build": "npm run build -w @setra/api && npm run build -w @setra/worker && npm run build -w @setra/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:contracts": "cd contracts && forge test",
+    "test:e2e": "playwright test",
+    "db:migrate": "tsx packages/database/src/migrate.ts",
+    "db:seed": "tsx packages/database/src/seed.ts && tsx packages/database/src/seed-books.ts",
+    "db:seed:books": "tsx packages/database/src/seed-books.ts",
+    "db:reset": "tsx packages/database/src/reset.ts && npm run db:migrate && npm run db:seed",
+    "openapi:write": "tsx apps/api/src/scripts/write-openapi.ts",
+    "local-chain": "tsx scripts/local-chain.ts",
+    "webhook-receiver": "tsx scripts/webhook-receiver.ts",
+    "contracts:build": "cd contracts && forge build",
+    "contracts:record": "tsx scripts/record-deployment.ts",
+    "audit:ui": "node scripts/ui-audit.mjs",
+    "health:check": "node scripts/health-monitor.mjs",
+    "test:e2e:onchain": "playwright test -c playwright.onchain.config.ts",
+    "test:e2e:live": "playwright test -c playwright.live.config.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0",
+    "@types/node": "^24.3.0",
+    "concurrently": "^9.2.1",
+    "esbuild": "^0.25.9",
+    "tsx": "^4.20.5",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

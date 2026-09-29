@@ -1,0 +1,29 @@
+[package]
+name = "setra-exec-sidecar"
+version = "0.1.0"
+edition = "2021"
+description = "Setra sidecar: reads Monad execution events from the node's event ring and forwards payment signals to Setra"
+license = "UNLICENSED"
+publish = false
+
+[dependencies]
+clap = { version = "4.2", features = ["derive", "env"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+hex = "0.4"
+ureq = { version = "2.10", features = ["json"] }
+
+# The official Category Labs execution events SDK, pinned to release/exec-events-sdk-v1.1.
+# scripts/fetch-sdk.sh places a shallow clone of that tag in vendor/monad.
+[dependencies.monad-event-ring]
+path = "vendor/monad/rust/crates/monad-event-ring"
+
+[dependencies.monad-exec-events]
+path = "vendor/monad/rust/crates/monad-exec-events"
+
+[profile.release]
+lto = "thin"
+
+# The SDK crates keep their own workspace (vendor/monad/rust) for dependency inheritance.
+[workspace]
+exclude = ["vendor/monad"]

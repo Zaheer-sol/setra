@@ -1,0 +1,19 @@
+{
+  "name": "@setra/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --env-file-if-exists=../../.env src/main.ts",
+    "build": "node ../../scripts/build-service.mjs src/main.ts dist/main.js",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@setra/blockchain": "*",
+    "@setra/config": "*",
+    "@setra/database": "*",
+    "@setra/engine": "*"
+  },
+  "devDependencies": { "typescript": "^5.9.2" }
+}

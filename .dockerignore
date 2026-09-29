@@ -1,0 +1,16 @@
+**/node_modules
+**/.next
+**/.next-build
+**/dist
+contracts/out
+contracts/cache
+contracts/lib
+contracts/broadcast
+test-results
+playwright-report
+.env
+.env.*
+!.env.example
+.setra-demo-webhook-secret
+.git
+deploy/production.env

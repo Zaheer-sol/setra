@@ -1,0 +1,93 @@
+# Production stack from the three Dockerfile targets. Run it on any host with Docker, behind a TLS
+# terminating proxy (Caddy, nginx, a load balancer) that forwards to web:3000 and, for merchant
+# servers, api:4000.
+#
+#   cp deploy/production.env.example deploy/production.env     # fill in; never commit it
+#   docker compose -f deploy/compose.production.yml --env-file deploy/production.env up -d
+#
+# Managed Postgres is recommended: set DATABASE_URL / MIGRATION_DATABASE_URL to it and start without
+# the bundled database. To run the bundled one instead, add `--profile bundled-db`.
+name: setra
+
+x-app: &app
+  env_file: production.env
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "20m", max-file: "5" }
+
+services:
+  postgres:
+    profiles: ["bundled-db"]
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: setra
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: setra
+      SETRA_APP_PASSWORD: ${SETRA_APP_PASSWORD:?set SETRA_APP_PASSWORD}
+    volumes:
+      - setra-postgres:/var/lib/postgresql/data
+    configs:
+      - source: app-role
+        target: /docker-entrypoint-initdb.d/01-app-role.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U setra -d setra"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  # One-shot: applies migrations (advisory-locked, idempotent) and syncs the network registry.
+  migrate:
+    <<: *app
+    image: ${SETRA_API_IMAGE:-setra-api:local}
+    command: ["node", "dist/migrate.js"]
+    restart: "no"
+    depends_on:
+      postgres: { condition: service_healthy, required: false }
+
+  api:
+    <<: *app
+    image: ${SETRA_API_IMAGE:-setra-api:local}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    ports: ["${API_PUBLISH:-127.0.0.1:4000}:4000"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/v1/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  worker:
+    <<: *app
+    image: ${SETRA_WORKER_IMAGE:-setra-worker:local}
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+  web:
+    <<: *app
+    image: ${SETRA_WEB_IMAGE:-setra-web:local}
+    environment:
+      API_INTERNAL_URL: http://api:4000
+    depends_on:
+      api: { condition: service_healthy }
+    ports: ["${WEB_PUBLISH:-127.0.0.1:3000}:3000"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/v1/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+# Bundled database only (first boot): the non-superuser application role, so row-level security is
+# enforced. Migrations grant it table privileges.
+configs:
+  app-role:
+    content: |
+      #!/bin/sh
+      set -eu
+      psql -v ON_ERROR_STOP=1 -v pw="$$SETRA_APP_PASSWORD" --username "$$POSTGRES_USER" --dbname "$$POSTGRES_DB" <<'SQL'
+      CREATE ROLE setra_app LOGIN PASSWORD :'pw' NOSUPERUSER NOBYPASSRLS;
+      SQL
+
+volumes:
+  setra-postgres:
