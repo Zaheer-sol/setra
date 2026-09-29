@@ -19,7 +19,8 @@ if (productionSeed && process.env.DEMO_SEED_ENABLED !== "true") {
   process.exit(1);
 }
 
-const { withGlobal, withTenant, closePools } = await import("./pool");
+const { withGlobal, withSystem, withTenant, closePools } = await import("./pool");
+const { appEnv } = await import("@setra/config");
 const engine = await import("@setra/engine");
 const { newId } = await import("@setra/schemas");
 const { randomToken, sha256Hex } = await import("@setra/security");
@@ -39,15 +40,25 @@ const ahead = (days: number) => new Date(now + days * DAY);
 /** Deterministic, obviously-synthetic addresses so demo data is stable across reseeds. */
 const addr = (label: string) => `0x${createHash("sha256").update(`setra-demo:${label}`).digest("hex").slice(0, 40)}` as `0x${string}`;
 
-const existing = (await withGlobal((c) => c.query("SELECT id FROM users WHERE lower(email) = $1", [OWNER_EMAIL]))).rows[0];
-if (existing) {
+// Fail before creating anything if the runtime configuration is invalid (e.g. a missing ENCRYPTION_KEY).
+appEnv();
+
+// The account and workspace are created outside the demo transaction, so a failed earlier run can
+// leave them without any demo content. Reuse them and finish the demo instead of skipping it.
+const existingUser = (await withGlobal((c) => c.query("SELECT id FROM users WHERE lower(email) = $1", [OWNER_EMAIL]))).rows[0] as { id: string } | undefined;
+const existingOrg = existingUser
+  ? ((await withSystem((c) => c.query("SELECT o.id FROM organizations o JOIN organization_members m ON m.organization_id = o.id AND m.role = 'owner' WHERE m.user_id = $1 AND o.is_demo ORDER BY o.created_at LIMIT 1", [existingUser.id]))).rows[0] as { id: string } | undefined)
+  : undefined;
+const complete = existingOrg ? (await withSystem((c) => c.query("SELECT 1 FROM wallets WHERE organization_id = $1 LIMIT 1", [existingOrg.id]))).rows[0] : undefined;
+if (existingUser && (!existingOrg || complete)) {
   console.log(`Demo data already exists (${OWNER_EMAIL}). Run \`npm run db:reset\` to start over.`);
   await closePools();
   process.exit(0);
 }
+if (existingOrg) console.log("Finishing a demo workspace that an earlier run left incomplete.");
 
-const user = await engine.createUser({ email: OWNER_EMAIL, name: "Maya Chen", password: OWNER_PASSWORD });
-const org = await engine.createOrganization({ name: "Acme Infrastructure", ownerUserId: user.id, ownerLabel: OWNER_EMAIL });
+const user = existingUser ?? (await engine.createUser({ email: OWNER_EMAIL, name: "Maya Chen", password: OWNER_PASSWORD }));
+const org = existingOrg ?? (await engine.createOrganization({ name: "Acme Infrastructure", ownerUserId: user.id, ownerLabel: OWNER_EMAIL }));
 await withGlobal((c) => c.query("UPDATE organizations SET is_demo = true, support_email = 'billing@acme-infra.test', onboarding_completed_at = now() WHERE id = $1", [org.id]));
 const actor: Actor = { type: "user", id: user.id, label: OWNER_EMAIL };
 const orgId = org.id;
