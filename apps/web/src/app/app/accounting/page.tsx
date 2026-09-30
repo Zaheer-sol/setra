@@ -5,6 +5,7 @@ import { sumDecimalAmounts } from "@setra/schemas";
 import { useState } from "react";
 import { AlertTriangle, CalendarCheck, CheckCircle2, ChevronRight, CircleDashed, Coins, Download, Landmark, Lock, LockOpen, NotebookPen, RefreshCw, Scale, Wrench } from "lucide-react";
 import { Alert, Badge, Button, ButtonLink, Card, ErrorState, Metric, Metrics, PageHeader, SkeletonBlock, SkeletonRows, useToast } from "@/components/app-ui";
+import { BooksOnMonad } from "@/components/books-on-monad";
 import { FinancialsGate, ReasonModal, presetRange, useAccounts } from "@/components/ledger-components";
 import { useSession } from "@/components/session";
 import { Seti } from "@/components/seti";
@@ -29,6 +30,7 @@ function BooksView() {
   const { data: pl } = useApi<any>(`/v1/accounting/reports/profit-and-loss${qs(month)}`);
   const { data: open } = useApi<any>("/v1/accounting/unclassified");
   const [repairing, setRepairing] = useState(false);
+  const [allChecks, setAllChecks] = useState(false);
 
   const bal = (key: string) => accounts?.data.find((a) => a.system_key === key)?.balance ?? "0.00";
   const cash = accounts ? sumDecimalAmounts(accounts.data.filter((a) => a.subtype === "cash").map((a) => a.balance)) : null;
@@ -75,7 +77,7 @@ function BooksView() {
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px] [&>*]:min-w-0">
         <Card
           title="Do the books agree?"
-          description="Setra checks the ledger against invoices, bills, wallets and onchain activity every time you open this page."
+          description="Setra checks the ledger against invoices, bills, wallets and onchain activity each time you open this page."
           actions={
             <>
               <Button size="sm" variant="ghost" icon={<RefreshCw />} onClick={() => mutate()} aria-label="Check again">
@@ -105,7 +107,8 @@ function BooksView() {
                 </div>
               </div>
               <ul className="divide-y">
-                {health.checks.map((c) => {
+                {/* Passing checks are folded away: only what needs a look is shown by default. */}
+                {health.checks.filter((c) => allChecks || c.status !== "ok").map((c) => {
                   const Icon = c.status === "ok" ? CheckCircle2 : c.status === "attention" ? AlertTriangle : CircleDashed;
                   const body = (
                     <>
@@ -135,6 +138,11 @@ function BooksView() {
                   );
                 })}
               </ul>
+              {health.checks.some((c) => c.status === "ok") && (
+                <button type="button" onClick={() => setAllChecks((v) => !v)} aria-expanded={allChecks} className="w-full cursor-pointer border-t px-6 py-3 text-left text-sm font-medium text-primary hover:bg-accent/50 max-md:px-4">
+                  {allChecks ? "Hide passing checks" : `Show all ${health.checks.length} checks (${health.checks.filter((c) => c.status === "ok").length} passing)`}
+                </button>
+              )}
               {health.issues.length > 0 && (
                 <div className="border-t px-6 py-4 max-md:px-4">
                   <Alert tone="warning" title="Automatic postings that failed">
@@ -198,6 +206,7 @@ function PeriodsCard() {
                   {p.posted_entries} posted{p.draft_entries ? ` · ${p.draft_entries} draft` : ""}
                   {p.reopen_reason && p.status === "open" ? ` · reopened: ${p.reopen_reason}` : ""}
                 </p>
+                {p.status === "closed" && <BooksOnMonad month={p.month} label={label(p.month)} />}
               </div>
               {can("financials:manage") &&
                 (p.status === "closed" ? (

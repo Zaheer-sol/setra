@@ -105,7 +105,7 @@ export function AuthAsideVisual() {
       </div>
       <div className="tabular mt-2 mb-3.5 text-4xl font-semibold tracking-[-0.03em]">$2,000.00</div>
       <div className="grid gap-2 text-sm text-[#d2d2d7]">
-        {["Correct receiving wallet", "Approved asset · USDC", "Monad · finalized", "Exact amount", "One deterministic candidate"].map((c) => (
+        {["Correct receiving wallet", "Approved asset · USDC", "Monad · finalized", "Exact amount", "Only one invoice fits"].map((c) => (
           <div key={c} className="flex items-center gap-2">
             <Check className="size-[13px] stroke-[3] text-[#30d158]" /> {c}
           </div>

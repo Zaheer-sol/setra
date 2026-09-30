@@ -18,7 +18,7 @@ const SECTIONS = [
     points: [
       "Tokens are identified by chain ID and contract address, never by symbol.",
       "Payments are applied only after Monad finality; tip observations are provisional.",
-      "If monitoring falls behind or a provider fails, Setra pauses and says so, it never fills gaps with guesses."
+      "If monitoring falls behind or a provider fails, Setra pauses and says so. It doesn't fill gaps with guesses."
     ]
   },
   {
@@ -58,7 +58,7 @@ const SECTIONS = [
 export default function SecurityPage() {
   return (
     <>
-      <PageHero title="Built like financial infrastructure." mascot="resting">Setra handles payment records, not money. Here is exactly how it protects them, and what it deliberately never touches.</PageHero>
+      <PageHero title="How Setra keeps your records safe." mascot="resting">Setra handles payment records. The money itself goes straight from your customer to your wallet. This page explains how the records are protected and what Setra never has access to.</PageHero>
       <section className="pb-16">
         <Stagger className={`${wrap} grid gap-4 md:grid-cols-2`}>
           {SECTIONS.map((s) => (
@@ -72,7 +72,7 @@ export default function SecurityPage() {
       <section className="py-16">
         <div className={wrap}>
           <p className="max-w-[720px] text-muted-foreground">
-            Setra&rsquo;s smart contract has an automated test suite with fuzz and invariant tests, but it has not been audited by a third party. We&rsquo;ll publish audit reports here when they exist. Report
+            Setra&apos;s smart contract has an automated test suite with fuzz and invariant tests, but it has not been audited by a third party. We&apos;ll publish audit reports here when they exist. Report
             vulnerabilities to security@setra.dev.
           </p>
         </div>

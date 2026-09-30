@@ -11,7 +11,7 @@ const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono-face", 
 
 export const metadata: Metadata = {
   title: { default: "Setra · Get paid in stablecoins. Your books are already done.", template: "%s · Setra" },
-  description: "Stablecoin payments and bookkeeping on Monad. The moment a payment is final, Setra matches it to its invoice and updates your books, with every number traceable to the chain.",
+  description: "Invoices and bookkeeping for businesses paid in USDC on Monad. About two seconds after a payment lands, Setra matches it to its invoice and posts it to your books.",
   applicationName: "Setra",
   icons: { icon: "/favicon.svg" }
 };

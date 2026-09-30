@@ -60,7 +60,7 @@ export default function LoginPage() {
   return (
     <>
       <h1>Sign in to Setra</h1>
-      <p className="mt-2 text-[1.0625rem] tracking-[-0.012em] text-muted-foreground">See what every payment means.</p>
+      <p className="mt-2 text-[1.0625rem] tracking-[-0.012em] text-muted-foreground">Welcome back.</p>
       <Suspense>
         <LoginForm />
       </Suspense>

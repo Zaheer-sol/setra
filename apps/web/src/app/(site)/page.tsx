@@ -4,7 +4,7 @@ import { HeroVisual } from "@/components/payment-visual";
 import { Seti } from "@/components/seti";
 import { Badge, ChainMark, CodeBlock } from "@/components/app-ui";
 import { Bullet, Eyebrow, Feature, InlineCode, SectionHead, TextArrow, section, wrap } from "@/components/marketing";
-import { Aurora, CountTo, Float, Pop, Reveal, ScrollLift, ScrollWords, SlideIn, Stagger, StaggerItem, Tilt } from "@/components/motion";
+import { Aurora, Float, Pop, Reveal, ScrollLift, ScrollWords, SlideIn, Stagger, StaggerItem, Tilt } from "@/components/motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -15,14 +15,14 @@ export default function HomePage() {
         <Aurora className="bottom-auto h-[760px]" />
         <Stagger onView={false} gap={0.09} delay={0.05} className={wrap}>
           <StaggerItem>
-            <Eyebrow>Stablecoin payments and bookkeeping on Monad</Eyebrow>
+            <Eyebrow>Invoices, payments and books for businesses paid in USDC</Eyebrow>
           </StaggerItem>
           <StaggerItem>
             <h1 className="mt-6 text-[clamp(2.75rem,5.6vw,4.75rem)] leading-[1.05] font-bold tracking-[-0.03em] text-balance">Get paid in stablecoins.<br />Your books are already done.</h1>
           </StaggerItem>
           <StaggerItem>
             <p className="mx-auto mt-[22px] max-w-[680px] text-[clamp(1.1875rem,1.6vw,1.4375rem)] leading-[1.42] tracking-[-0.015em] text-pretty text-muted-foreground">
-              The moment a payment is final on Monad, Setra knows which invoice it paid and your books are updated. No wallet spreadsheets, no guessing, and no crypto knowledge needed for you or your customers.
+              Send an invoice and your customer pays in USDC on Monad. About two seconds later, Setra has matched the payment to the invoice and posted it to your books. The money goes straight to your own wallet.
             </p>
           </StaggerItem>
           <StaggerItem>
@@ -35,7 +35,7 @@ export default function HomePage() {
           </StaggerItem>
           <StaggerItem>
             <div className="mt-5 flex flex-wrap justify-center gap-[18px] text-sm text-muted-foreground">
-              {["Your wallets stay yours", "Every number traces to the chain", "Export to QuickBooks or Xero"].map((t) => (
+              {["Paid straight to your wallet", "Every figure links to its transaction", "Exports to QuickBooks and Xero"].map((t) => (
                 <span key={t} className="inline-flex items-center gap-1.5">
                   <CheckCircle2 className="size-3.5 text-success" aria-hidden="true" /> {t}
                 </span>
@@ -63,8 +63,8 @@ export default function HomePage() {
         <div className={wrap}>
           <ScrollWords
             className="mx-auto max-w-[980px] text-center text-[clamp(1.875rem,4vw,3.25rem)] leading-[1.1] font-semibold tracking-[-0.03em] text-balance"
-            text="Blockchains tell you where money moved. Setra tells your business what it means."
-            highlight="Setra tells your business what it means."
+            text="A block explorer shows that 2,000 USDC moved. Setra shows that Acme paid invoice INV-2041 and that it is in your books."
+            highlight="Setra shows that Acme paid invoice INV-2041 and that it is in your books."
           />
         </div>
       </section>
@@ -72,17 +72,17 @@ export default function HomePage() {
       <section className={section} id="how">
         <div className={wrap}>
           <Reveal>
-            <SectionHead kicker="How it works" title="From wallet activity to books you can explain.">
-              Keep the way you receive money. Setra helps you classify activity, reconcile your records and understand your business. Create payment requests only when you need them.
+            <SectionHead kicker="How it works" title="From a wallet address to a full set of books.">
+              You can start with the wallet you already use. Setra reads its activity, and you send invoices only when you want to.
             </SectionHead>
           </Reveal>
           <Stagger className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {[
-              ["Connect", "Add a public wallet address on Monad. You keep control of your funds and how you get paid."],
-              ["Understand", "Review verified incoming and outgoing stablecoin activity. Unidentified money stays separate from revenue."],
-              ["Record", "Match receipts, classify transfers, and record bills and expenses in your double-entry books."],
-              ["Reconcile", "Check the ledger against invoices, bills and monitored wallet activity. Resolve differences with a reason on record."],
-              ["Report", "See profit and loss, your balance sheet and cash flow, then trace the figures back to their journal entries."]
+              ["Add your wallet", "Paste a public Monad address. Setra never asks for keys and never holds your funds."],
+              ["Get paid", "Customers pay from an invoice link, or send USDC to your address the way they already do."],
+              ["Match", "Each payment is matched to its invoice by a payment reference, a known customer wallet or an exact amount. Anything uncertain waits for you."],
+              ["Book", "Matched payments post to a double-entry ledger. Money nobody has claimed is kept apart from revenue until you say what it was."],
+              ["Report", "Profit and loss, balance sheet and cash flow, with each figure linked to the entries and transactions behind it."]
             ].map(([t, d], i) => (
               <StaggerItem key={t} className="h-full">
                 <Tilt max={5} className="h-full rounded-[22px]">
@@ -101,23 +101,23 @@ export default function HomePage() {
       <section className={cn(section, "pt-0")}>
         <div className={wrap}>
           <Reveal>
-            <SectionHead kicker="Your books, not just your invoices" title="Know what you earned. Know what you owe.">
-              A shared ledger connects your day-to-day work to financial reports. Start without creating a payment link or asking customers to change how they pay.
+            <SectionHead kicker="Spending too" title="Know what you earned and what you owe.">
+              Outgoing USDC gets the same care as incoming. Record a vendor bill or an expense, link the transfer that paid it, and it lands in the same ledger as your invoices.
             </SectionHead>
           </Reveal>
           <Stagger className="grid gap-4 md:grid-cols-3">
-            <StaggerItem><Feature icon={<FileSearch />} title="Bills and expenses" body="Record vendor bills, approve expenses and link outgoing transfers to what they paid for. Offchain payments can be recorded manually." /></StaggerItem>
-            <StaggerItem><Feature icon={<Scale />} title="Double-entry books" body="Review your chart of accounts and journal. Posted entries stay on record; reversals correct mistakes without erasing history." /></StaggerItem>
-            <StaggerItem><Feature icon={<CircleDollarSign />} title="Reports with a trail" body="Read profit and loss, balance sheet and cash flow reports built from posted journal entries, with CSV exports for your finance team." /></StaggerItem>
+            <StaggerItem><Feature icon={<FileSearch />} title="Bills and expenses" body="Record a bill, approve it, and link the transfer that paid it. Payments made off the chain can be entered by hand." /></StaggerItem>
+            <StaggerItem><Feature icon={<Scale />} title="Double-entry books" body="Posted entries stay on record. A mistake is fixed with a reversing entry, so the history shows what changed and who changed it." /></StaggerItem>
+            <StaggerItem><Feature icon={<CircleDollarSign />} title="Reports your accountant can check" body="Profit and loss, balance sheet and cash flow come from the same posted entries, and download as CSV or as a QuickBooks or Xero import." /></StaggerItem>
           </Stagger>
-          <p className="mt-6 text-sm text-muted-foreground">Currently focused on USD-pegged stablecoins. Setra is not a bank feed, tax-filing service or automatic integration with your existing payment provider.</p>
+          <p className="mt-6 text-sm text-muted-foreground">Setra works with USD stablecoins today. It is not a bank feed or a tax-filing service, and it does not connect to card processors.</p>
         </div>
       </section>
 
       <section className={cn(section, "pt-0")}>
         <div className={wrap}>
           <Reveal>
-            <SectionHead kicker="Payment collection, when you need it" title="A payment isn’t just a transaction. It’s a business event." />
+            <SectionHead kicker="What a payment looks like" title="The same transfer, read two ways." />
           </Reveal>
           <div className="grid items-center gap-5 lg:grid-cols-[1fr_auto_1fr]">
             <SlideIn from="left" className="h-full">
@@ -153,7 +153,7 @@ export default function HomePage() {
                 </div>
                 <div className="tabular mt-2 mb-3.5 text-[1.75rem] font-semibold tracking-[-0.028em]">$2,000.00 USDC</div>
                 <ul className="grid">
-                  {["Correct receiving wallet", "Approved asset · USDC on Monad", "Exact amount", "Within the payment window", "One deterministic candidate"].map((c) => (
+                  {["Correct receiving wallet", "Approved asset · USDC on Monad", "Exact amount", "Within the payment window", "Only one invoice fits"].map((c) => (
                     <li key={c} className="flex items-center gap-2.5 border-t py-2.5 first:border-t-0">
                       <span className="grid size-5 place-items-center rounded-full bg-success/12 text-success" aria-hidden="true">
                         <CheckCircle2 className="size-3" />
@@ -172,8 +172,8 @@ export default function HomePage() {
         <div className={wrap}>
           <div className="flex items-end justify-between gap-8">
             <Reveal>
-              <SectionHead kicker="When payments don’t match perfectly" title="Setra never guesses with your money.">
-                Partial, extra, unknown, late or wrong-token payments go to a review queue with the evidence and the options, and every decision is recorded.
+              <SectionHead kicker="When a payment doesn&apos;t fit" title="Setra doesn&apos;t guess with your money.">
+                A partial payment, an overpayment, a payment in the wrong token or one nobody claims goes to a review list with the evidence and your options. Whatever you decide is recorded with your name and reason.
               </SectionHead>
             </Reveal>
             <Seti mood="curious" size={150} className="mr-6 mb-10 max-md:hidden" />
@@ -191,12 +191,12 @@ export default function HomePage() {
               <Feature
                 inset
                 icon={<FileSearch />}
-                title="Unknown money, explained"
-                body="A payment nobody claims shows the plausible invoices and exactly why each one fits. Assign it in two clicks, with a reason on record."
+                title="Unknown payments"
+                body="When nobody claims a payment, Setra lists the invoices it could belong to and why each one fits. You assign it in two clicks, with a reason."
               />
             </StaggerItem>
             <StaggerItem>
-              <Feature inset icon={<GitMerge />} title="History you can trust" body="Evidence is immutable. Reversals and resolutions are compensating entries, so you can always see what happened and when." />
+              <Feature inset icon={<GitMerge />} title="Nothing gets overwritten" body="Chain evidence can&apos;t be edited. A reversal or a resolution is a new entry, so you can always see what happened and when." />
             </StaggerItem>
           </Stagger>
         </div>
@@ -205,18 +205,18 @@ export default function HomePage() {
       <section className={section}>
         <div className={cn(wrap, "grid items-center gap-14 lg:grid-cols-2")}>
           <Reveal>
-            <SectionHead kicker="Built for Monad" title="Money observed is not yet money confirmed." className="mb-0">
-              Setra detects activity near the chain tip, then checks Monad&rsquo;s <InlineCode>finalized</InlineCode> block tag and its configured safety lag before applying payments. Blockchain evidence stays attached to the financial record.
+            <SectionHead kicker="Built on Monad" title="Detected right away, final in about two seconds." className="mb-0">
+              Setra shows a payment as detected as soon as it appears at the chain tip, and applies it only once Monad marks the block <InlineCode>finalized</InlineCode>. On Monad mainnet that took 1.8 seconds on average in our tests.
             </SectionHead>
             <ul className="mt-6 grid gap-3.5">
               <Bullet icon={<Zap />} title="Detected at the tip.">
-                A provisional observation can show &ldquo;payment detected&rdquo; before settlement. Timing depends on the RPC provider and worker health.
+                You and your customer see &quot;Payment detected&quot; right away. Nothing is booked yet.
               </Bullet>
               <Bullet icon={<BadgeCheck />} title="Applied at finality.">
-                Confirmed payments reach the books after settlement checks. Observation events remain explicitly provisional.
+                The invoice and the books change only after Monad finalizes the block, so a payment is never booked and then taken back.
               </Bullet>
-              <Bullet icon={<Radar />} title="Canonical USDC.">
-                Tokens are identified by chain and contract address, never by symbol.
+              <Bullet icon={<Radar />} title="The real USDC.">
+                Setra identifies tokens by chain and contract address, never by symbol, so a look-alike token can&apos;t pay an invoice.
               </Bullet>
             </ul>
           </Reveal>
@@ -229,9 +229,9 @@ export default function HomePage() {
                 </div>
                 <Stagger className="mt-[22px] grid gap-2.5 text-sm" gap={0.18} delay={0.2}>
                   {[
-                    ["Transfer", <>Customer&rsquo;s USDC transfer appears onchain</>],
-                    ["Observe", <>Setra records provisional evidence: &ldquo;Payment detected&rdquo;</>],
-                    ["Verify", <>Finality and safety checks pass; Setra matches it to INV-2041</>],
+                    ["Transfer", <>The customer&apos;s USDC transfer appears onchain</>],
+                    ["Observe", <>Setra records the evidence and shows &quot;Payment detected&quot;</>],
+                    ["Verify", <>Monad finalizes the block and Setra matches it to INV-2041</>],
                     [
                       "Record",
                       <>
@@ -247,12 +247,12 @@ export default function HomePage() {
                 </Stagger>
                 <div className="mt-5 grid gap-3 sm:grid-cols-3">
                   {[
-                    ["Linked", "evidence and books"],
-                    ["0", "funds held by Setra"],
-                    ["100%", "decisions explained"]
+                    ["1.8 s", "detected to paid, Monad mainnet"],
+                    ["0", "customer funds held by Setra"],
+                    ["1", "ledger for invoices, bills and reports"]
                   ].map(([b, l]) => (
                     <div key={l} className="rounded-2xl bg-white/7 p-4">
-                      <b className="block text-[1.75rem] font-semibold tracking-[-0.03em]">{b === "100%" ? <CountTo value={100} suffix="%" /> : b}</b>
+                      <b className="block text-[1.75rem] font-semibold tracking-[-0.03em]">{b}</b>
                       <span className="text-xs text-[#a1a1a6]">{l}</span>
                     </div>
                   ))}
@@ -289,8 +289,8 @@ x-setra-signature: v1=6f1c…a09e
             />
           </SlideIn>
           <Reveal>
-            <SectionHead kicker="For developers" title="Not just a dashboard. Infrastructure." className="mb-0">
-              Everything in the console is available through a versioned API with idempotency keys, cursor pagination and consistent errors. Webhooks are HMAC-signed, retried with backoff and replayable.
+            <SectionHead kicker="For developers" title="Everything in the console is in the API." className="mb-0">
+              The API is versioned, with idempotency keys, cursor pagination and consistent errors. Webhooks are signed with HMAC, retried with backoff and can be replayed.
             </SectionHead>
             <div className="mt-8 flex flex-wrap gap-2.5">
               <Button asChild>
@@ -307,13 +307,13 @@ x-setra-signature: v1=6f1c…a09e
       <section className={cn(section, "pt-0")}>
         <Stagger className={cn(wrap, "grid gap-4 md:grid-cols-2 lg:grid-cols-3")}>
           <StaggerItem>
-            <Feature icon={<ShieldCheck />} title="Non-custodial" body="Customers pay your wallet directly. Setra only needs public addresses, never keys, seed phrases or withdrawal rights." />
+            <Feature icon={<ShieldCheck />} title="Non-custodial" body="Customers pay your wallet directly. Setra reads public addresses only and never asks for keys, seed phrases or withdrawal rights." />
           </StaggerItem>
           <StaggerItem>
-            <Feature icon={<Scale />} title="Books that connect" body="Journal entries, bills, expenses and financial reports share the same ledger. Corrections preserve the original history." />
+            <Feature icon={<Scale />} title="One ledger" body="Invoices, bills, expenses and reports all post to the same journal. A correction adds an entry and leaves the original in place." />
           </StaggerItem>
           <StaggerItem>
-            <Feature icon={<Webhook />} title="Records with a source" body="Onchain payments retain transaction evidence. Manual bills and expenses retain their source records, decisions and journal entries." />
+            <Feature icon={<Webhook />} title="A source for every record" body="An onchain payment keeps its transaction evidence. A bill entered by hand keeps its document, the approval and the journal entry." />
           </StaggerItem>
         </Stagger>
       </section>
@@ -324,8 +324,8 @@ x-setra-signature: v1=6f1c…a09e
             <div className="relative isolate overflow-hidden rounded-[32px] bg-card px-14 py-20 text-center text-card-foreground max-md:px-5 max-md:py-9">
               <Aurora className="opacity-60" />
               <Seti mood="success" size={124} className="mb-4" />
-              <h2 className="text-[clamp(2rem,4vw,3rem)] font-bold tracking-[-0.03em]">See what your money means.</h2>
-              <p className="mt-3.5 text-[clamp(1.0625rem,1.3vw,1.25rem)] tracking-[-0.012em] text-muted-foreground">Start with your books or your first payment request. No change to how you get paid is required.</p>
+              <h2 className="text-[clamp(2rem,4vw,3rem)] font-bold tracking-[-0.03em]">Try it on Monad testnet.</h2>
+              <p className="mt-3.5 text-[clamp(1.0625rem,1.3vw,1.25rem)] tracking-[-0.012em] text-muted-foreground">Create a workspace, send yourself an invoice and pay it with test USDC. It takes about five minutes, and no real money moves.</p>
               <div className="mt-8 flex flex-wrap justify-center gap-2.5">
                 <Button asChild size="lg">
                   <Link href="/signup">

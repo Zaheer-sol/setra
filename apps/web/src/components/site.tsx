@@ -82,12 +82,13 @@ export function SiteShell({ children }: { children: ReactNode }) {
           </div>
         </nav>
       </header>
-      <main id="main">{children}</main>
+      {/* overflow-x-clip: slide-in animations start offscreen and must not widen the page on phones. */}
+      <main id="main" className="overflow-x-clip">{children}</main>
       <footer className="mt-10 border-t border-sidebar-border/70 pt-10 pb-12 text-sm">
         <div className="mx-auto grid max-w-[1200px] grid-cols-2 gap-8 px-6 max-md:px-4 lg:grid-cols-[1.4fr_repeat(3,1fr)]">
           <div className="max-lg:col-span-2">
             <Logo />
-            <p className="mt-3 max-w-[320px] text-muted-foreground">Accounting and financial operations for businesses on Monad. Your wallets, books and financial reports, together.</p>
+            <p className="mt-3 max-w-[320px] text-muted-foreground">Invoices, payment matching and bookkeeping for businesses paid in USDC on Monad.</p>
             <p className="mt-3 max-w-[320px] text-muted-foreground">Setra is non-custodial software. It never holds funds or keys.</p>
             <ThemeSwitcher className="mt-5" />
           </div>

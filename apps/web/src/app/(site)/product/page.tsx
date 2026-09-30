@@ -19,12 +19,12 @@ const STAGES = [
     name: "Understand",
     title: "Every transfer, verified against the chain",
     body: "Setra watches your wallets on Monad. It records each relevant log as immutable evidence (block, hash, log index, token contract) and tracks it from the chain tip to finality. Unsupported tokens and zero-value noise never become payments.",
-    points: ["Detected within one block", "Applied only once final (Monad's finalized tag)", "Reorgs create compensating history, never silent edits"]
+    points: ["Detected within one block", "Applied only once final (Monad's finalized tag)", "A reorg adds a compensating entry; nothing is edited in place"]
   },
   {
     name: "Match",
     title: "Deterministic, explainable matching",
-    body: "A rules engine, not a model, decides which invoice each payment belongs to: an onchain payment-intent reference, a known customer wallet, or an exact amount that identifies exactly one open invoice. If more than one answer is plausible, Setra asks you instead of guessing.",
+    body: "Fixed rules decide which invoice each payment belongs to (no AI model is involved): an onchain payment-intent reference, a known customer wallet, or an exact amount that identifies exactly one open invoice. If more than one answer is plausible, Setra asks you instead of guessing.",
     points: ["Every decision lists the checks it made", "Versioned rules on every conclusion", "Partial, over, late and duplicate payments recognized"]
   },
   {
@@ -48,7 +48,7 @@ export default function ProductPage() {
         <div className={`${wrap} grid items-start gap-14 lg:grid-cols-2`}>
           <div>
             <Seti mood="welcome" size={112} priority className="mb-5 lg:hidden" />
-            <h1 className="max-w-[860px] text-[clamp(2.5rem,5vw,4rem)] leading-[1.05] font-bold tracking-[-0.03em] text-balance">The operations layer for stablecoin payments.</h1>
+            <h1 className="max-w-[860px] text-[clamp(2.5rem,5vw,4rem)] leading-[1.05] font-bold tracking-[-0.03em] text-balance">Invoices, payment matching and books for USDC on Monad.</h1>
             <p className="mt-5 max-w-[680px] text-[clamp(1.1875rem,1.6vw,1.375rem)] leading-[1.42] tracking-[-0.015em] text-muted-foreground">
               Setra sits between Monad and your business: it observes where money moved, decides what it means, and gives you a place to operate it, without custody and without spreadsheets.
             </p>
@@ -96,9 +96,9 @@ export default function ProductPage() {
           <Reveal>
             <div className="rounded-[32px] bg-card px-14 py-20 text-center text-card-foreground max-md:px-5 max-md:py-9">
               <Seti mood="attention" size={132} className="mb-4" />
-              <h2 className="text-[clamp(2rem,4vw,3rem)] font-bold tracking-[-0.03em]">What Setra doesn&rsquo;t do</h2>
+              <h2 className="text-[clamp(2rem,4vw,3rem)] font-bold tracking-[-0.03em]">What Setra doesn&apos;t do</h2>
               <p className="mx-auto mt-3 max-w-[680px] text-[1.0625rem] text-muted-foreground">
-                Setra isn&rsquo;t a bank, an exchange, a custodian or a general ledger. It never holds funds, never trades, and doesn&rsquo;t replace your accounting system, it gives it clean, verified payment records.
+                Setra isn&apos;t a bank, an exchange, a custodian or a general ledger. It never holds funds, never trades, and doesn&apos;t replace your accounting system, it gives it clean, verified payment records.
               </p>
             </div>
           </Reveal>

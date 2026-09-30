@@ -256,8 +256,9 @@ export function Card({ title, description, actions, children, footer, padded = f
   return (
     <UICard className={cn("gap-0 overflow-hidden py-0", className)} id={id} aria-labelledby={title && id ? `${id}-title` : undefined} role={title && id ? "region" : undefined}>
       {(title || actions) && (
-        <div className="flex min-h-[60px] items-center justify-between gap-3 border-b px-6 pt-5 pb-4 max-md:px-4">
-          <div className="min-w-0">
+        <div className="flex min-h-[60px] flex-wrap items-center justify-between gap-x-3 gap-y-3 border-b px-6 pt-5 pb-4 max-md:px-4">
+          {/* The title claims at least ~16rem; actions wrap below it on narrow screens instead of squeezing it. */}
+          <div className="min-w-0 flex-1 basis-[16rem]">
             {title && (
               <h2 id={id ? `${id}-title` : undefined} className="text-[1.0625rem] font-semibold tracking-[-0.02em]">
                 {title}

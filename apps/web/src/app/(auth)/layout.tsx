@@ -22,7 +22,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       </div>
       <aside className="relative isolate flex flex-col justify-between overflow-hidden bg-black p-14 text-[#f5f5f7] max-md:hidden dark:shadow-[inset_0.5px_0_0_rgba(255,255,255,0.12)]" aria-hidden="true">
         <Aurora className="z-0 opacity-90" />
-        <blockquote className="relative m-0 max-w-[520px] text-[2rem] leading-[1.18] font-semibold tracking-[-0.03em]">Blockchains tell you where money moved. Setra tells your business what it means.</blockquote>
+        <blockquote className="relative m-0 max-w-[520px] text-[2rem] leading-[1.18] font-semibold tracking-[-0.03em]">Send an invoice, get paid in USDC on Monad, and find it already in your books.</blockquote>
         <div className="relative flex items-end gap-2">
           <Float amplitude={10} duration={9}>
             <Tilt max={10} glare={false} className="w-fit rounded-[22px]">
@@ -31,7 +31,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           </Float>
           <Seti mood="welcome" size={170} priority className="-ml-10 max-lg:hidden" />
         </div>
-        <p className="relative text-sm text-[#86868b]">Stablecoin payment operations on Monad.</p>
+        <p className="relative text-sm text-[#86868b]">Invoices and bookkeeping for businesses paid in USDC.</p>
       </aside>
     </div>
   );

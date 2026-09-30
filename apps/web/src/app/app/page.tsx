@@ -56,7 +56,7 @@ export default function OverviewPage() {
           <h1 className="mt-1 text-[2.125rem] leading-[1.08] font-bold tracking-[-0.03em] max-md:text-[1.75rem]">
             {greeting()}, {firstName}.
           </h1>
-          <p className="mt-2 text-[1.0625rem] tracking-[-0.012em] text-muted-foreground">Here&rsquo;s what is happening with your money.</p>
+          <p className="mt-2 text-[1.0625rem] tracking-[-0.012em] text-muted-foreground">Here&apos;s where your money stands.</p>
           </div>
         </div>
         <Segmented label="Period" value={period} onChange={setPeriod} options={PERIODS.map((p) => ({ value: p.key, label: p.label }))} />
@@ -71,12 +71,17 @@ export default function OverviewPage() {
       ) : (
         <>
           {data.setup.payments === 0 && <SetupChecklist setup={data.setup} />}
-          <Metrics label="Summary">
-            <Metric label="Received" value={data.metrics.received} money foot={`${data.metrics.payments} payment${data.metrics.payments === 1 ? "" : "s"}`} />
-            <Metric label="Matched" value={String(data.metrics.matched)} foot={data.metrics.payments ? `${Math.round((data.metrics.matched / data.metrics.payments) * 100)}% matched automatically` : "No payments in period"} />
-            <Metric label="Needs attention" value={String(data.metrics.needs_attention)} href="/app/exceptions" warn={data.metrics.needs_attention > 0} foot={data.metrics.needs_attention ? <Money value={data.metrics.needs_attention_amount} /> : "All clear"} />
-            <Metric label="Unknown" value={String(data.metrics.unknown)} href="/app/exceptions?type=unknown_payment" warn={data.metrics.unknown > 0} foot="Can't be matched safely" />
+          {/* Three numbers a business checks daily; the detail lives one click away. */}
+          <Metrics label="Summary" className="grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3">
+            <Metric
+              label="Received"
+              value={data.metrics.received}
+              money
+              href="/app/payments"
+              foot={data.metrics.payments ? `${data.metrics.payments} payment${data.metrics.payments === 1 ? "" : "s"} · ${Math.round((data.metrics.matched / data.metrics.payments) * 100)}% matched automatically` : "No payments yet in this period"}
+            />
             <Metric label="Outstanding" value={data.metrics.outstanding} money href="/app/invoices?status=open" foot={`${data.metrics.outstanding_invoices} open invoice${data.metrics.outstanding_invoices === 1 ? "" : "s"}`} />
+            <Metric label="Needs review" value={String(data.metrics.needs_attention)} href="/app/exceptions" warn={data.metrics.needs_attention > 0} foot={data.metrics.needs_attention ? <Money value={data.metrics.needs_attention_amount} /> : "All clear"} />
           </Metrics>
           {data.metrics.confirming > 0 && (
             <div className="flex gap-3 rounded-xl bg-info/10 px-4 py-3 text-sm" role="status">
@@ -85,14 +90,14 @@ export default function OverviewPage() {
                 <strong className="font-semibold">
                   {data.metrics.confirming} payment{data.metrics.confirming === 1 ? "" : "s"} confirming
                 </strong>
-                <span className="text-foreground/80">Detected on chain and waiting for finality. Balances update the moment they&rsquo;re final.</span>
+                <span className="text-foreground/80">Seen on Monad and waiting for the block to be final, usually a couple of seconds.</span>
               </div>
             </div>
           )}
         </>
       )}
 
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div className={cn("grid items-start gap-6", data?.needs_attention.length ? "xl:grid-cols-[minmax(0,1fr)_360px]" : "")}>
         <Card
           title="Recent activity"
           actions={
@@ -103,23 +108,20 @@ export default function OverviewPage() {
         >
           {!data ? <SkeletonRows rows={6} cols={4} /> : <PaymentsTable rows={data.recent_activity} compact />}
         </Card>
-        <Card
-          title="Needs attention"
-          description="Payments Setra won't decide on its own"
-          actions={
-            data?.needs_attention.length ? (
+        {/* Only when something is waiting: the tile above already says "All clear" otherwise. */}
+        {!!data?.needs_attention.length && (
+          <Card
+            title="Needs review"
+            description="Payments Setra won't settle on its own"
+            actions={
               <ButtonLink href="/app/exceptions" size="sm" variant="ghost">
                 Review <ArrowRight />
               </ButtonLink>
-            ) : undefined
-          }
-        >
-          {!data ? (
-            <SkeletonRows rows={4} cols={2} />
-          ) : (
-            <ExceptionsList rows={data.needs_attention} empty={<CardBody className="flex items-center gap-2.5 text-muted-foreground"><Check className="size-4 text-success" /> Every payment is accounted for.</CardBody>} />
-          )}
-        </Card>
+            }
+          >
+            <ExceptionsList rows={data.needs_attention} />
+          </Card>
+        )}
       </div>
     </div>
   );
@@ -138,7 +140,7 @@ function SetupChecklist({ setup }: { setup: Overview["setup"] }) {
       <CardBody className="py-1">
         <ol className="grid">
           {steps.map((s) => (
-            <li key={s.title} className="grid grid-cols-[26px_1fr_auto] items-center gap-3 border-t py-3 first:border-t-0">
+            <li key={s.title} className="grid grid-cols-[26px_1fr] items-center gap-x-3 gap-y-2 border-t py-3 first:border-t-0 sm:grid-cols-[26px_1fr_auto]">
               <span className={cn("grid size-[22px] place-items-center rounded-full", s.done ? "bg-success text-white" : "border-[1.5px] border-dashed border-muted-foreground/40")} aria-label={s.done ? "Done" : "Not done"}>
                 {s.done && <Check className="size-3 stroke-[3]" />}
               </span>
@@ -147,7 +149,7 @@ function SetupChecklist({ setup }: { setup: Overview["setup"] }) {
                 <div className="text-sm text-muted-foreground">{s.desc}</div>
               </div>
               {!s.done && s === next && (
-                <ButtonLink href={s.href} size="sm" variant="primary" icon={<Plus />}>
+                <ButtonLink href={s.href} size="sm" variant="primary" icon={<Plus />} className="col-start-2 justify-self-start sm:col-start-auto">
                   {s.cta}
                 </ButtonLink>
               )}

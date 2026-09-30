@@ -2,37 +2,33 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ComponentType, type ReactNode } from "react";
+import { useEffect, useId, useState, type ComponentType, type ReactNode } from "react";
 import { mutate } from "swr";
 import {
   ArrowDownLeft,
   BookMarked,
   BookOpen,
   Building2,
-  Check,
-  ChevronsUpDown,
   ChartColumn,
+  Check,
+  ChevronDown,
+  ChevronsUpDown,
   Code2,
   CreditCard,
-  FileText,
   FlaskConical,
   Inbox,
-  KeyRound,
   LayoutGrid,
   ListTree,
   LogOut,
   MessageSquareText,
   NotebookPen,
   Plus,
-  Radio,
   Receipt,
   Scale,
   Search,
   Settings,
-  Store,
   Users,
-  Wallet,
-  Webhook
+  Wallet
 } from "lucide-react";
 import { api, useApi } from "@/lib/api";
 import { initials } from "@/lib/format";
@@ -147,7 +143,29 @@ function NavGroup({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-type NavLink = { href: string; label: string; icon: ComponentType<{ className?: string }>; exact?: boolean; count?: string | null; external?: boolean };
+/** A collapsed group for tools most people rarely need. Opens by itself when one of its pages is showing. */
+function MoreGroup({ open, children }: { open: boolean; children: ReactNode }) {
+  const [expanded, setExpanded] = useState(open);
+  useEffect(() => {
+    if (open) setExpanded(true);
+  }, [open]);
+  const id = useId();
+  return (
+    <SidebarGroup className="py-1">
+      <SidebarGroupLabel asChild className="text-[11.5px] font-semibold text-muted-foreground">
+        <button type="button" aria-expanded={expanded} aria-controls={id} onClick={() => setExpanded((v) => !v)} className="flex w-full cursor-pointer items-center justify-between hover:text-foreground">
+          More
+          <ChevronDown className={cn("size-3.5 transition-transform", expanded && "rotate-180")} aria-hidden="true" />
+        </button>
+      </SidebarGroupLabel>
+      <SidebarGroupContent id={id} hidden={!expanded}>
+        {children}
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
+}
+
+type NavLink = { href: string; label: string; icon: ComponentType<{ className?: string }>; exact?: boolean; count?: string | null; external?: boolean; also?: string[] };
 
 function ConsoleSidebar() {
   const pathname = usePathname();
@@ -162,40 +180,39 @@ function ConsoleSidebar() {
 
   const main: NavLink[] = [
     { href: "/app", label: "Overview", icon: LayoutGrid, exact: true },
-    { href: "/app/assistant", label: "Seti", icon: MessageSquareText },
-    { href: "/app/exceptions", label: "Needs review", icon: Inbox, count: openCount }
+    { href: "/app/exceptions", label: "Needs review", icon: Inbox, count: openCount },
+    { href: "/app/assistant", label: "Seti", icon: MessageSquareText }
   ];
-  const moneyLinks: NavLink[] = [
-    { href: "/app/payments", label: "Payments", icon: ArrowDownLeft },
+  const getPaid: NavLink[] = [
     { href: "/app/invoices", label: "Invoices", icon: Receipt },
+    { href: "/app/payments", label: "Payments", icon: ArrowDownLeft },
     { href: "/app/customers", label: "Customers", icon: Users },
     { href: "/app/wallets", label: "Wallets", icon: Wallet }
   ];
-  const spend: NavLink[] = [
-    { href: "/app/vendors", label: "Vendors", icon: Store },
-    { href: "/app/bills", label: "Bills", icon: FileText },
-    { href: "/app/expenses", label: "Expenses", icon: CreditCard }
-  ];
-  const accounting: NavLink[] = [
+  const books: NavLink[] = [
     { href: "/app/accounting", label: "Books", icon: BookMarked, exact: true },
     { href: "/app/reports", label: "Reports", icon: ChartColumn },
-    { href: "/app/accounting/journal", label: "Journal", icon: NotebookPen },
-    { href: "/app/accounting/accounts", label: "Chart of accounts", icon: ListTree },
-    { href: "/app/reconciliation", label: "Reconciliation", icon: Scale }
+    // Bills, expenses and vendors share one entry; tabs switch between them.
+    { href: "/app/bills", label: "Spending", icon: CreditCard, also: ["/app/expenses", "/app/vendors"] }
   ];
-  const dev: NavLink[] = [
-    { href: "/app/developers", label: "Overview", icon: Code2, exact: true },
-    { href: "/app/developers/api-keys", label: "API keys", icon: KeyRound },
-    { href: "/app/developers/webhooks", label: "Webhooks", icon: Webhook },
-    { href: "/app/developers/events", label: "Events", icon: Radio },
-    ...(me.environment === "test" ? [{ href: "/app/developers/test-mode", label: "Test payments", icon: FlaskConical }] : []),
+  // Accountant and developer tools, out of the way until someone needs them.
+  const more: NavLink[] = [
+    ...(can("financials:read")
+      ? [
+          { href: "/app/accounting/journal", label: "Journal", icon: NotebookPen },
+          { href: "/app/accounting/accounts", label: "Chart of accounts", icon: ListTree },
+          { href: "/app/reconciliation", label: "Reconciliation", icon: Scale }
+        ]
+      : []),
+    { href: "/app/developers", label: "Developers", icon: Code2 },
     { href: "/docs", label: "Docs", icon: BookOpen, external: true }
   ];
+  const moreActive = more.some((l) => !l.external && is(l.href, l.exact));
 
   const renderLinks = (links: NavLink[]) => (
     <SidebarMenu className="gap-px">
-      {links.map(({ href, label, icon: Icon, exact, count, external }) => {
-        const active = !external && is(href, exact);
+      {links.map(({ href, label, icon: Icon, exact, count, external, also }) => {
+        const active = !external && (is(href, exact) || !!also?.some((a) => is(a)));
         return (
           <SidebarMenuItem key={href}>
             <SidebarMenuButton
@@ -235,14 +252,9 @@ function ConsoleSidebar() {
             <nav aria-label="Console">{renderLinks(main)}</nav>
           </SidebarGroupContent>
         </SidebarGroup>
-        <NavGroup label="Money">{renderLinks(moneyLinks)}</NavGroup>
-        {can("financials:read") && (
-          <>
-            <NavGroup label="Spend">{renderLinks(spend)}</NavGroup>
-            <NavGroup label="Accounting">{renderLinks(accounting)}</NavGroup>
-          </>
-        )}
-        <NavGroup label="Developers">{renderLinks(dev)}</NavGroup>
+        <NavGroup label="Get paid">{renderLinks(getPaid)}</NavGroup>
+        {can("financials:read") && <NavGroup label="Books">{renderLinks(books)}</NavGroup>}
+        <MoreGroup open={moreActive}>{renderLinks(more)}</MoreGroup>
       </SidebarContent>
       <SidebarFooter className="gap-2 px-3 pb-3">
         <ModeToggle />

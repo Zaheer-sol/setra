@@ -625,7 +625,7 @@ function SimulateButton({ token, onDone }: { token: string; onDone: () => void }
       <Button
         variant="ghost"
         size="sm"
-        className="text-xs text-muted-foreground"
+        className="h-auto min-h-8 text-xs whitespace-normal text-muted-foreground"
         disabled={busy}
         onClick={async () => {
           setBusy(true);
@@ -640,7 +640,7 @@ function SimulateButton({ token, onDone }: { token: string; onDone: () => void }
           }
         }}
       >
-        {busy ? <Spinner /> : <FlaskConical aria-hidden="true" />} Developer tool: simulate instead (no funds move)
+        {busy ? <Spinner /> : <FlaskConical aria-hidden="true" />} Simulate a test payment (no funds move)
       </Button>
       {error && <p className={errorCls}>{error}</p>}
     </div>
