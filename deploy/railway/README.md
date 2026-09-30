@@ -1,45 +1,54 @@
 # Deploying Setra on Railway
 
-Four Railway services, one project: `Postgres` (Railway's database), `api` (the API; runs
-migrations before each deploy), `worker` (watches Monad and delivers webhooks, always on) and `web`
-(the console, the website and the hosted payment page). Nothing sleeps. The web app reaches the API
-over Railway's private network, so the API needs no public address.
+One Railway project with four services: a PostgreSQL database, the API (runs migrations when it
+starts), the worker (watches Monad and delivers webhooks, always on) and the web app (console,
+website and hosted payment page). Nothing sleeps. The web app reaches the API over Railway's private
+network, so the API needs no public address.
 
-The service names matter: the variables refer to each other as `api`, `worker`, `web` and `Postgres`.
+All three app services build the same Docker image from this repository (the Dockerfile's default
+stage, as `railway.json` at the root says), and each one's `SETRA_ROLE` variable (`api`, `worker` or
+`web`) decides what starts, so there's no per-service configuration in the dashboard. The API runs
+migrations each time it starts.
 
 ## One-time setup
 
-1. Sign in at railway.com with GitHub and create a **New Project → Deploy from GitHub repo →
-   Zaheer-sol/setra**. Railway creates one service from the repo; open it and rename it to `api`
-   (Settings → Service name).
-2. In the project, **Create → Database → PostgreSQL**. Leave its name as `Postgres`.
-3. **Create → GitHub Repo → Zaheer-sol/setra** twice more, and rename the two new services `worker`
-   and `web`.
-4. For each of `api`, `worker` and `web`, open **Settings → Config-as-code** and set the Railway
-   config file to `/deploy/railway/api.json`, `/deploy/railway/worker.json` or
-   `/deploy/railway/web.json` respectively. Leave the root directory empty (the whole repository).
-5. On `web`, open **Settings → Networking → Generate Domain**. This is the site's public address.
-   `api` and `worker` need no domain.
-6. On your computer, from the repository folder:
+From the repository folder:
 
-       npm install -g @railway/cli
-       railway login
-       railway link              # choose the Setra project
-       bash deploy/railway/setup-variables.sh
+    npm install -g @railway/cli
+    railway login
+    railway link                     # choose the project
 
-   The script generates the secrets with openssl and sends them straight to Railway (they are never
-   shown), and sets every other variable as a Railway reference, so the services find the database
-   and each other by themselves. Running it again is safe: existing secrets are kept.
-7. Deploy: in the Railway dashboard press **Deploy** on the staged changes, or push to GitHub.
+Create the database and the services (skip any that already exist; a service created from the repo
+in the dashboard works too, whatever its name):
 
-The first deploy builds for a few minutes. `api` runs migrations, enables the restricted database
-role the app connects as, and seeds the demo workspace (sign in as `owner@acme.test` with the demo
-password from the README). Then open the `web` domain.
+    railway add --database postgres
+    railway add --service api --repo Zaheer-sol/setra
+    railway add --service worker --repo Zaheer-sol/setra
+    railway add --service web --repo Zaheer-sol/setra
+
+Then set everything up:
+
+    bash deploy/railway/setup-variables.sh
+
+The script gives the web service a public address, generates the secrets with openssl and sends them
+straight to Railway (they are never shown), and sets every other variable as a Railway reference so
+the services find the database and each other by themselves. It prints the site's address at the
+end. Running it again is safe: existing secrets are kept.
+
+If your services have other names, say so: `API_SERVICE=setra bash deploy/railway/setup-variables.sh`
+(also `WORKER_SERVICE`, `WEB_SERVICE` and `DB_SERVICE`; the defaults are `api`, `worker`, `web` and
+`Postgres`).
+
+Finally, deploy: `railway up --service <name> --detach` for each service uploads this folder (files in
+`.gitignore`, such as `.env`, are never uploaded), or connect the services to the GitHub repo in the
+dashboard so every push deploys. The first build takes a few minutes.
+The API runs migrations, enables the restricted database role the app connects as, and seeds the demo
+workspace (sign in as `owner@acme.test` with the demo password from the README).
 
 ## After deploying the contracts
 
 Once `contracts/deployments/monad-testnet.json` exists (see `contracts/deployments/README.md`), run
-`bash deploy/railway/setup-variables.sh` again: it adds the contract addresses to `api` and `worker`.
+the setup script again: it adds the contract addresses to the API and the worker.
 
 ## Why the app doesn't connect as the database's own user
 
