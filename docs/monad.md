@@ -56,9 +56,22 @@ latency on mainnet measured at **~1.8 s average**.
   possible duplicate. A real 20 USDC faucet transfer into the merchant wallet was picked up by backfill and
   flagged as unknown.
 
+## Books on Monad
+
+When a month is closed, the business can publish its books' fingerprint on Monad from its own wallet
+(`contracts/src/SetraBooksAttestation.sol`: no owner, no admin, no funds). The fingerprint is a
+Merkle root over the month's posted journal entries (each leaf covers the entry's id, number, date,
+source and every line), so the entries stay private while anyone the business shares its books with
+can check they're the ones it vouched for. Setra records an attestation only after reading the
+transaction back from the chain and checking that its book, month, root and entry count match the
+books exactly; if a month is reopened and adjusted, the Books page says the books changed since they
+were published until the new version is published. Publishing costs about 65,000 gas. Verified end to
+end against the real contract on Anvil (`packages/engine/test/books-attestation.test.ts`).
+
 ## What has not been verified against real Monad yet
 
-- **SetraPaymentIntent on Monad.** Not deployed yet. It is deployed and exercised end-to-end on Anvil
+- **SetraPaymentIntent and SetraBooksAttestation on Monad.** Not deployed yet; both deploy with one
+  command (`contracts/script/DeploySetra.s.sol`, see `contracts/deployments/README.md`). It is deployed and exercised end-to-end on Anvil
   (pay, refund, reference-based matching, intent id parity with the contract). Deploy with
   `contracts/script/DeployPaymentIntent.s.sol` and record it with `npm run contracts:record`.
 - **Any payment on Monad mainnet.** Mainnet ingestion was verified read-only; no mainnet funds were used.

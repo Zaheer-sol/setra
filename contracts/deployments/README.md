@@ -1,9 +1,16 @@
 # Deployments
 
 One JSON file per network, written by `npm run contracts:record -- --network <key>` from Foundry's
-broadcast output. Setra reads contract addresses from environment variables
-(`MONAD_PAYMENT_INTENT_ADDRESS`, `MONAD_TESTNET_PAYMENT_INTENT_ADDRESS`, …); these files are the
-auditable record of what was deployed where, including the ABI.
+broadcast output, covering both contracts (`SetraPaymentIntent` and `SetraBooksAttestation`). Setra
+reads contract addresses from environment variables (`MONAD_TESTNET_PAYMENT_INTENT_ADDRESS`,
+`MONAD_TESTNET_BOOKS_ATTESTATION_ADDRESS`, …; `render.yaml` sets them for the hosted demo); these
+files are the auditable record of what was deployed where, including the ABI.
+
+Deploy both to Monad testnet with your own keystore (`cast wallet import` first if you haven't):
+
+    cd contracts && forge script script/DeploySetra.s.sol --rpc-url https://testnet-rpc.monad.xyz \
+      --account <keystore-name> --broadcast
+    cd .. && npm run contracts:record -- --network monad-testnet
 
 | Network        | Chain ID | File                   | Status |
 | -------------- | -------- | ---------------------- | ------ |

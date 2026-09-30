@@ -20,6 +20,7 @@ import { accountantExportRoutes } from "./accountant-exports";
 import { attachmentRoutes } from "./attachments";
 import { recurringBillRoutes } from "./recurring-bills";
 import { counterpartyRoutes } from "./counterparty";
+import { booksAttestationRoutes } from "./books-attestation";
 
 /** Every accounting route: the books, payables, and the tools around them. */
 export function accountingRoutes(app: FastifyInstance) {
@@ -44,4 +45,5 @@ export function accountingRoutes(app: FastifyInstance) {
   attachmentRoutes(app);
   recurringBillRoutes(app);
   counterpartyRoutes(app);
+  booksAttestationRoutes(app);
 }

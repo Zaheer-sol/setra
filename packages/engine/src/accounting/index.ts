@@ -23,3 +23,4 @@ export * from "./year-end";
 export * from "./accountant-exports";
 export * from "./attachments";
 export * from "./recurring-bills";
+export * from "./books-attestation";

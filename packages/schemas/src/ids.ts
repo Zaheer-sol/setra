@@ -52,6 +52,7 @@ export const ID_PREFIXES = {
   creditNote: "cn",
   attachment: "att",
   recurringBill: "rbill",
+  booksAttestation: "batt",
   webhookEndpoint: "we",
   webhookDelivery: "whd",
   webhookAttempt: "wha",

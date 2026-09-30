@@ -225,6 +225,8 @@ export const openingBalancesInput = z.object({
     .max(200)
 });
 export const yearParam = z.object({ year: z.coerce.number().int().min(2000).max(2100) });
+export const monthParam = z.object({ month: z.string().regex(/^\d{4}-\d{2}$/, "Use a month like 2026-09") });
+export const booksAttestationInput = z.object({ transaction_hash: z.string().regex(/^0x[0-9a-fA-F]{64}$/, "Paste the transaction hash") });
 
 // ── Exports, attachments, recurring bills ───────────────────────────────────────────────────────
 

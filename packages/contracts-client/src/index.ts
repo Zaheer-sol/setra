@@ -69,6 +69,35 @@ export const PAYMENT_INTENT_ABI = [
   }
 ] as const;
 
+/** SetraBooksAttestation: a business publishes the Merkle root of a closed month from its own wallet. */
+export const BOOKS_ATTESTATION_ABI = [
+  {
+    type: "function",
+    name: "attest",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "book", type: "bytes32" },
+      { name: "period", type: "uint32" },
+      { name: "root", type: "bytes32" },
+      { name: "entryCount", type: "uint32" }
+    ],
+    outputs: [{ name: "version", type: "uint32" }]
+  },
+  {
+    type: "event",
+    name: "BooksAttested",
+    anonymous: false,
+    inputs: [
+      { name: "publisher", type: "address", indexed: true },
+      { name: "book", type: "bytes32", indexed: true },
+      { name: "period", type: "uint32", indexed: true },
+      { name: "root", type: "bytes32", indexed: false },
+      { name: "entryCount", type: "uint32", indexed: false },
+      { name: "version", type: "uint32", indexed: false }
+    ]
+  }
+] as const;
+
 export const ERC20_ABI = [
   { type: "function", name: "approve", stateMutability: "nonpayable", inputs: [{ name: "spender", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ name: "", type: "bool" }] },
   { type: "function", name: "allowance", stateMutability: "view", inputs: [{ name: "owner", type: "address" }, { name: "spender", type: "address" }], outputs: [{ name: "", type: "uint256" }] },

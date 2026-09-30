@@ -6,7 +6,7 @@ import { isoDate } from "./ledger";
 
 type Row = Record<string, any>;
 
-const monthBounds = (month: string) => {
+export const monthBounds = (month: string) => {
   if (!/^\d{4}-\d{2}$/.test(month)) throw new EngineError("invalid_period", "Periods are months, like 2026-09.", 422);
   const [y, m] = month.split("-").map(Number) as [number, number];
   const start = new Date(Date.UTC(y, m - 1, 1));
