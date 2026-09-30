@@ -9,6 +9,8 @@ const schema = z.object({
   WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
   PUBLIC_APP_URL: z.string().url().optional(),
   API_PORT: z.coerce.number().int().positive().default(4000),
+  /** Address the API listens on. "::" accepts IPv6 and IPv4, for hosts whose private network is IPv6 (Railway). */
+  API_HOST: z.string().default("0.0.0.0"),
   DATABASE_URL: z.string().min(1).optional(),
   MIGRATION_DATABASE_URL: z.string().min(1).optional(),
   DB_POOL_SIZE: z.coerce.number().int().positive().default(10),

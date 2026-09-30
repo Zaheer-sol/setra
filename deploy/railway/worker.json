@@ -1,0 +1,11 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "RAILPACK",
+    "buildCommand": "npm ci --include=dev --ignore-scripts && node scripts/build-service.mjs apps/worker/src/main.ts apps/worker/dist/main.js"
+  },
+  "deploy": {
+    "startCommand": "node apps/worker/dist/main.js",
+    "restartPolicyType": "ALWAYS"
+  }
+}
