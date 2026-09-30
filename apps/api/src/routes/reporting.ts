@@ -5,6 +5,7 @@ import { withGlobal, type Client } from "@setra/database";
 import { decimalString, serializeException } from "@setra/engine";
 import { paymentListQuery, reconciliationQuery } from "@setra/schemas";
 import { toCsv } from "../lib/csv";
+import { exportFilename, exportOwner, sendReportCsv } from "../lib/report-file";
 import { route } from "../lib/route";
 import { PAYMENT_COLUMNS, PAYMENT_FROM, paymentFilter, presentPayment } from "./payments";
 import { walletSync } from "./wallets";
@@ -300,7 +301,7 @@ export function reportingRoutes(app: FastifyInstance) {
     tags: ["reporting"],
     permission: "read",
     query: paymentListQuery.omit({ limit: true, starting_after: true, ending_before: true, sort: true }),
-    handler: async ({ query, tx, organizationId, environment, reply }) => {
+    handler: async ({ query, tx, organizationId, environment, reply, actor }) => {
       const rows = await tx(async (c) => {
         const { where, params } = paymentFilter(query, organizationId, environment);
         return (
@@ -327,7 +328,8 @@ export function reportingRoutes(app: FastifyInstance) {
           ];
         })
       );
-      reply.header("content-type", "text/csv; charset=utf-8").header("content-disposition", `attachment; filename="setra-payments-${environment}-${new Date().toISOString().slice(0, 10)}.csv"`);
+      const owner = await tx((c) => exportOwner(c, organizationId, environment, actor));
+      reply.header("content-type", "text/csv; charset=utf-8").header("content-disposition", `attachment; filename="${exportFilename(owner, "payments", new Date().toISOString().slice(0, 10))}"`);
       return csv;
     }
   });
@@ -339,7 +341,7 @@ export function reportingRoutes(app: FastifyInstance) {
     tags: ["reporting"],
     permission: "read",
     query: reconciliationQuery,
-    handler: async ({ query, tx, organizationId, environment, reply }) => {
+    handler: async ({ query, tx, organizationId, environment, reply, actor }) => {
       const { start, end } = periodBounds(query);
       const { invoices, unapplied } = await tx(async (c) => {
         const ip: unknown[] = [organizationId, environment, start, end];
@@ -376,15 +378,18 @@ export function reportingRoutes(app: FastifyInstance) {
         return { invoices, unapplied };
       });
       const net = (id: number) => networks().byChainId(Number(id))?.name ?? String(id);
-      const csv = toCsv(
-        ["record_type", "invoice_number", "invoice_title", "purpose", "customer", "date", "due_date", "status", "currency", "amount_due", "amount_received", "amount_written_off", "amount_remaining", "asset", "network", "transaction_hashes", "payment_ids", "sender", "notes"],
-        [
+      const owner = await tx((c) => exportOwner(c, organizationId, environment, actor));
+      const lastDay = new Date(end.getTime() - 86_400_000).toISOString().slice(0, 10);
+      return sendReportCsv(reply, owner, {
+        file: "reconciliation",
+        title: "Reconciliation: every invoice and every unapplied payment",
+        period: { from: start.toISOString().slice(0, 10), to: lastDay },
+        headers: ["record_type", "invoice_number", "invoice_title", "purpose", "customer", "date", "due_date", "status", "currency", "amount_due", "amount_received", "amount_written_off", "amount_remaining", "asset", "network", "transaction_hashes", "payment_ids", "sender", "notes"],
+        rows: [
           ...invoices.map((i) => ["invoice", i.number, i.title, i.purpose, i.customer_name, iso(i.issued_at), iso(i.due_at), i.status, i.currency, decimalString(i.amount_due), decimalString(i.amount_paid), decimalString(i.written_off), decimalString(i.remaining), i.symbol, net(i.chain_id), i.tx_hashes, i.payment_ids, null, i.last_payment_at ? `Last payment ${iso(i.last_payment_at)}` : null]),
           ...unapplied.map((p) => ["unapplied_payment", null, null, "Unknown", p.customer_name, iso(p.block_timestamp), null, p.status, "USD", null, decimalString(p.amount), null, null, p.symbol, net(p.chain_id), p.transaction_hash, p.id, p.from_address, p.note])
         ]
-      );
-      reply.header("content-type", "text/csv; charset=utf-8").header("content-disposition", `attachment; filename="setra-reconciliation-${start.toISOString().slice(0, 10)}.csv"`);
-      return csv;
+      });
     }
   });
 }

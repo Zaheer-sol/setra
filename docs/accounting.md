@@ -72,6 +72,14 @@ The posted journal and the chart of accounts export in QuickBooks Online and Xer
 plain CSV). Closing entries are left out, since those systems close the year themselves. An outside
 accountant can be invited with the **Accountant** role.
 
+Every export is named for the business it belongs to, for example
+`acme-infrastructure-profit-and-loss-2026-09-01-to-2026-09-30.csv` (with `-test` for test mode).
+Reports (trial balance, profit and loss, balance sheet, cash flow, aging, general ledger and
+reconciliation) open with a title block: the business's name, the report, its period, basis,
+currency and mode, and when and by whom it was generated. They start with a UTF-8 byte order mark so
+Excel shows names with accents correctly. Import files (QuickBooks, Xero) and the payments list keep
+their exact column layout, so only their filename carries the business's name.
+
 ## Permissions
 
 | Permission | Owner | Admin | Accountant | Operator | Developer | Viewer | API key (read/write) |

@@ -3,7 +3,7 @@ import { balanceSheet, cashFlow, ensureBooks, generalLedger, payablesAging, prof
 import { generalLedgerQuery, reportAsOfQuery, reportRangeQuery } from "@setra/schemas";
 import { route } from "../../lib/route";
 import { today } from "../../lib/dates";
-import { sendCsv } from "../../lib/csv";
+import { exportOwner, sendReportCsv } from "../../lib/report-file";
 
 type Row = Record<string, any>;
 
@@ -18,7 +18,7 @@ export function reportRoutes(app: FastifyInstance) {
     tags: ["accounting"],
     permission: "financials:read",
     query: generalLedgerQuery,
-    handler: ({ tx, query, organizationId, environment, reply }) =>
+    handler: ({ tx, query, organizationId, environment, reply, actor }) =>
       tx(async (c) => {
         await ensureBooks(c, organizationId, environment);
         const gl = await generalLedger(c, organizationId, environment, {
@@ -36,12 +36,15 @@ export function reportRoutes(app: FastifyInstance) {
           offset: query.format === "csv" ? 0 : query.offset
         });
         if (query.format === "csv") {
-          return sendCsv(
-            reply,
-            "general-ledger",
-            ["date", "entry", "description", "account_code", "account", "debit", "credit", "balance", "memo", "customer", "vendor", "source"],
-            gl.lines.map((l: Row) => [l.entry.date, l.entry.number, l.entry.description, l.account.code, l.account.name, l.debit, l.credit, l.running_balance, l.memo, l.customer?.name, l.vendor?.name, l.entry.source_type])
-          );
+          const account = query.account_id ? gl.lines[0]?.account : null;
+          return sendReportCsv(reply, await exportOwner(c, organizationId, environment, actor), {
+            file: account ? `general-ledger-${account.code}` : "general-ledger",
+            title: account ? `General ledger: ${account.code} ${account.name}` : "General ledger",
+            period: query.from || query.to ? { from: query.from ?? "start", to: query.to ?? today() } : { label: "All dates" },
+            details: account ? [["Opening balance", gl.opening_balance ?? "0.00"], ["Closing balance", gl.closing_balance ?? "0.00"]] : [],
+            headers: ["date", "entry", "description", "account_code", "account", "debit", "credit", "balance", "memo", "customer", "vendor", "source"],
+            rows: gl.lines.map((l: Row) => [l.entry.date, l.entry.number, l.entry.description, l.account.code, l.account.name, l.debit, l.credit, l.running_balance, l.memo, l.customer?.name, l.vendor?.name, l.entry.source_type])
+          });
         }
         return gl;
       })
@@ -54,11 +57,19 @@ export function reportRoutes(app: FastifyInstance) {
     tags: ["accounting"],
     permission: "financials:read",
     query: reportAsOfQuery,
-    handler: ({ tx, query, organizationId, environment, reply }) =>
+    handler: ({ tx, query, organizationId, environment, reply, actor }) =>
       tx(async (c) => {
         await ensureBooks(c, organizationId, environment);
         const r = await trialBalance(c, organizationId, environment, query.as_of ?? today());
-        if (query.format === "csv") return sendCsv(reply, "trial-balance", ["code", "account", "type", "debit", "credit"], [...r.accounts.map((a) => [a.code, a.name, a.type, a.debit_balance, a.credit_balance]), ["", "Total", "", r.totals.debit, r.totals.credit]]);
+        if (query.format === "csv") {
+          return sendReportCsv(reply, await exportOwner(c, organizationId, environment, actor), {
+            file: "trial-balance",
+            title: "Trial balance",
+            period: { asOf: r.as_of },
+            headers: ["code", "account", "type", "debit", "credit"],
+            rows: [...r.accounts.map((a) => [a.code, a.name, a.type, a.debit_balance, a.credit_balance]), ["", "Total", "", r.totals.debit, r.totals.credit]]
+          });
+        }
         return r;
       })
   });
@@ -70,7 +81,7 @@ export function reportRoutes(app: FastifyInstance) {
     tags: ["accounting"],
     permission: "financials:read",
     query: reportRangeQuery,
-    handler: ({ tx, query, organizationId, environment, reply }) =>
+    handler: ({ tx, query, organizationId, environment, reply, actor }) =>
       tx(async (c) => {
         await ensureBooks(c, organizationId, environment);
         const { raw, ...r } = await profitAndLoss(c, organizationId, environment, query.from ?? monthStart(), query.to ?? today());
@@ -86,7 +97,7 @@ export function reportRoutes(app: FastifyInstance) {
           rows.push(["", "", "Gross profit", r.gross_profit]);
           section("Operating expenses", r.operating_expenses);
           rows.push(["", "", "Net income", r.net_income]);
-          return sendCsv(reply, "profit-and-loss", ["section", "code", "account", "amount"], rows);
+          return sendReportCsv(reply, await exportOwner(c, organizationId, environment, actor), { file: "profit-and-loss", title: "Profit and loss", period: { from: r.from, to: r.to }, headers: ["section", "code", "account", "amount"], rows });
         }
         return r;
       })
@@ -99,7 +110,7 @@ export function reportRoutes(app: FastifyInstance) {
     tags: ["accounting"],
     permission: "financials:read",
     query: reportAsOfQuery,
-    handler: ({ tx, query, organizationId, environment, reply }) =>
+    handler: ({ tx, query, organizationId, environment, reply, actor }) =>
       tx(async (c) => {
         await ensureBooks(c, organizationId, environment);
         const r = await balanceSheet(c, organizationId, environment, query.as_of ?? today());
@@ -110,7 +121,7 @@ export function reportRoutes(app: FastifyInstance) {
             if (name === "Equity") rows.push([name, "", "Current earnings", r.equity.current_earnings]);
             rows.push([name, "", `Total ${name.toLowerCase()}`, s.total]);
           }
-          return sendCsv(reply, "balance-sheet", ["section", "code", "account", "amount"], rows);
+          return sendReportCsv(reply, await exportOwner(c, organizationId, environment, actor), { file: "balance-sheet", title: "Balance sheet", period: { asOf: r.as_of }, headers: ["section", "code", "account", "amount"], rows });
         }
         return r;
       })
@@ -123,19 +134,25 @@ export function reportRoutes(app: FastifyInstance) {
     tags: ["accounting"],
     permission: "financials:read",
     query: reportRangeQuery,
-    handler: ({ tx, query, organizationId, environment, reply }) =>
+    handler: ({ tx, query, organizationId, environment, reply, actor }) =>
       tx(async (c) => {
         await ensureBooks(c, organizationId, environment);
         const r = await cashFlow(c, organizationId, environment, query.from ?? monthStart(), query.to ?? today());
         if (query.format === "csv") {
-          return sendCsv(reply, "cash-flow", ["section", "category", "amount"], [
-            ["", "Opening balance", r.opening_balance],
-            ...r.operating.lines.map((l) => ["Operating", l.label, l.amount]),
-            ["Operating", "Net operating", r.operating.total],
-            ...r.financing.lines.map((l) => ["Financing", l.label, l.amount]),
-            ["", "Net change", r.net_change],
-            ["", "Closing balance", r.closing_balance]
-          ]);
+          return sendReportCsv(reply, await exportOwner(c, organizationId, environment, actor), {
+            file: "cash-flow",
+            title: "Cash flow",
+            period: { from: r.from, to: r.to },
+            headers: ["section", "category", "amount"],
+            rows: [
+              ["", "Opening balance", r.opening_balance],
+              ...r.operating.lines.map((l) => ["Operating", l.label, l.amount]),
+              ["Operating", "Net operating", r.operating.total],
+              ...r.financing.lines.map((l) => ["Financing", l.label, l.amount]),
+              ["", "Net change", r.net_change],
+              ["", "Closing balance", r.closing_balance]
+            ]
+          });
         }
         return r;
       })
@@ -152,17 +169,18 @@ export function reportRoutes(app: FastifyInstance) {
       tags: ["accounting"],
       permission: "financials:read",
       query: reportAsOfQuery,
-      handler: ({ tx, query, organizationId, environment, reply }) =>
+      handler: ({ tx, query, organizationId, environment, reply, actor }) =>
         tx(async (c) => {
           await ensureBooks(c, organizationId, environment);
           const r = (await fn(c, organizationId, environment, query.as_of ?? today())) as Row;
           if (query.format === "csv") {
-            return sendCsv(
-              reply,
-              kind,
-              ["number", kind === "receivables-aging" ? "customer" : "vendor", "due_date", "bucket", "remaining"],
-              (r.invoices ?? r.bills).map((x: Row) => [x.number, (x.customer ?? x.vendor)?.name, x.due_date ?? x.due_at, x.bucket, x.remaining])
-            );
+            return sendReportCsv(reply, await exportOwner(c, organizationId, environment, actor), {
+              file: kind,
+              title: kind === "receivables-aging" ? "Receivables aging: what customers owe" : "Payables aging: what you owe vendors",
+              period: { asOf: query.as_of ?? today() },
+              headers: ["number", kind === "receivables-aging" ? "customer" : "vendor", "due_date", "bucket", "remaining"],
+              rows: (r.invoices ?? r.bills).map((x: Row) => [x.number, (x.customer ?? x.vendor)?.name, x.due_date ?? x.due_at, x.bucket, x.remaining])
+            });
           }
           return r;
         })

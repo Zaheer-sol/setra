@@ -64,6 +64,26 @@ describe("accounting API", () => {
     expect(csv.body).toContain("Net income");
   });
 
+  it("every export is named for and headed with the business it belongs to; import files keep their exact layout", async () => {
+    const s = await signup("Café Nova & Sons");
+    const report = await call("GET", "/v1/accounting/reports/profit-and-loss?from=2026-08-01&to=2026-08-31&format=csv", auth(s));
+    expect(report.headers["content-disposition"]).toBe('attachment; filename="cafe-nova-sons-profit-and-loss-2026-08-01-to-2026-08-31-test.csv"');
+    const lines = report.body.replace(/^﻿/, "").split("\r\n");
+    expect(report.body.startsWith("﻿")).toBe(true);
+    expect(lines.slice(0, 3)).toEqual(["Café Nova & Sons", "Profit and loss", "Period,2026-08-01 to 2026-08-31"]);
+    expect(lines).toContain("Mode,Test mode: Monad testnet and simulated payments");
+    expect(lines.find((l: string) => l.startsWith("Generated,"))).toContain(s.email);
+    expect(lines).toContain("section,code,account,amount");
+
+    const quickbooks = await call("GET", "/v1/accounting/exports/journal?format=quickbooks&from=2026-08-01&to=2026-08-31", auth(s));
+    expect(quickbooks.headers["content-disposition"]).toBe('attachment; filename="cafe-nova-sons-journal-quickbooks-2026-08-01-to-2026-08-31-test.csv"');
+    expect(quickbooks.body.split("\r\n")[0]).toBe("Journal No,Journal Date,Account,Debits,Credits,Description,Name");
+
+    const payments = await call("GET", "/v1/exports/payments.csv", auth(s));
+    expect(payments.headers["content-disposition"]).toMatch(/^attachment; filename="cafe-nova-sons-payments-\d{4}-\d{2}-\d{2}-test\.csv"$/);
+    expect(payments.body.split("\r\n")[0]).toMatch(/^payment_id,date,status/);
+  });
+
   it("manual journal entries: drafts, posting, immutability and reversal", async () => {
     const s = await signup();
     const bank = await account(s, "1030");

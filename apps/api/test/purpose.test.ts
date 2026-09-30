@@ -224,10 +224,12 @@ describe("unknown stays unknown", () => {
     const hook = (await deliveries(s)).find((d) => d.event_type === "payment.unknown");
     expect(hook.payload.data.invoice).toBeNull();
     expect(hook.payload.data.purpose_status).toBe("unknown");
-    const rec = parseCsv((await call("GET", "/v1/exports/reconciliation.csv", { cookie: s.cookie })).body);
+    // The reconciliation report opens with the business's title block; its table starts at the header row.
+    const rec = parseCsv((await call("GET", "/v1/exports/reconciliation.csv", { cookie: s.cookie })).body.replace(/^\uFEFF/, ""));
+    const header = rec.find((r) => r[0] === "record_type")!;
     const unapplied = rec.find((r) => r[0] === "unapplied_payment")!;
-    expect(unapplied[rec[0]!.indexOf("purpose")]).toBe("Unknown");
-    expect(unapplied[rec[0]!.indexOf("invoice_title")]).toBe("");
+    expect(unapplied[header.indexOf("purpose")]).toBe("Unknown");
+    expect(unapplied[header.indexOf("invoice_title")]).toBe("");
 
     const exc = unknown.exceptions[0];
     const resolved = await call("POST", `/v1/exceptions/${exc.id}/resolve`, { cookie: s.cookie }, { action: "assign", invoice_id: inv.id, reason: "Acme confirmed by email" });
