@@ -25,6 +25,17 @@ function apiBase(value = process.env.API_INTERNAL_URL): string {
   return v.includes(".") ? `https://${v}` : `https://${v}.onrender.com`;
 }
 
+const WAKE_WAIT_MS = 75_000;
+
+/**
+ * True when the hosting router, not the API, answered because the API isn't running yet (Render marks
+ * these with x-render-routing). A service its owner suspended won't wake, so that isn't retried.
+ */
+function waking(res: Response): boolean {
+  const routing = res.headers.get("x-render-routing");
+  return (res.status === 502 || res.status === 503) && !!routing && !routing.startsWith("suspend");
+}
+
 async function proxy(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
   const base = apiBase();
   const { path } = await context.params;
@@ -36,16 +47,24 @@ async function proxy(request: NextRequest, context: { params: Promise<{ path: st
   });
 
   const hasBody = !["GET", "HEAD"].includes(request.method);
-  let upstream: Response;
-  try {
-    upstream = await fetch(target, {
-      method: request.method,
-      headers,
-      body: hasBody ? await request.arrayBuffer() : undefined,
-      redirect: "manual",
-      cache: "no-store"
-    });
-  } catch {
+  const body = hasBody ? await request.arrayBuffer() : undefined;
+  let upstream: Response | null = null;
+  // A sleeping API (free hosting plans stop idle services) takes up to a minute to wake. While it does,
+  // the host's router answers instead of the API, so the request never reached it and is safe to
+  // send again, even a POST. Wait for it rather than showing an error.
+  const deadline = Date.now() + WAKE_WAIT_MS;
+  for (;;) {
+    try {
+      upstream = await fetch(target, { method: request.method, headers, body, redirect: "manual", cache: "no-store" });
+      if (!waking(upstream) || Date.now() > deadline) break;
+      await upstream.body?.cancel();
+    } catch {
+      upstream = null;
+      if (Date.now() > deadline) break;
+    }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  if (!upstream) {
     return Response.json({ error: { code: "api_unavailable", message: "The Setra API isn't reachable right now. Your data is safe. Try again in a moment." } }, { status: 502 });
   }
 
