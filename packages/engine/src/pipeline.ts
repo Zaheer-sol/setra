@@ -546,16 +546,49 @@ async function decide(client: Client, paymentId: string, lockInvoices: boolean):
   const payment = (await client.query("SELECT * FROM payments WHERE id = $1", [paymentId])).rows[0] as Row;
   const wallet = (await client.query("SELECT * FROM wallets WHERE id = $1", [payment.wallet_id])).rows[0] as Row;
   const accepted = (await client.query<{ asset_id: string }>("SELECT asset_id FROM wallet_assets WHERE wallet_id = $1", [wallet.id])).rows.map((r) => r.asset_id);
+  const sender = (
+    await client.query(
+      `SELECT ca.customer_id, c.name FROM customer_addresses ca JOIN customers c ON c.id = ca.customer_id
+        WHERE ca.organization_id = $1 AND ca.chain_id = $2 AND ca.address = $3 AND c.archived_at IS NULL`,
+      [payment.organization_id, payment.chain_id, payment.from_address]
+    )
+  ).rows[0];
+
+  // Only the invoices a rule can settle or cite: the sender's own, and those whose remaining or
+  // original amount equals the payment. Locked in id order; the rest of the wallet's invoices can't
+  // change the decision, so they're neither read nor locked.
   const invoices = (
     await client.query(
       `SELECT i.*, c.name AS customer_name, w.address AS wallet_address
          FROM invoices i JOIN customers c ON c.id = i.customer_id JOIN wallets w ON w.id = i.wallet_id
-        WHERE i.organization_id = $1 AND i.environment = $2 AND (i.wallet_id = $3 OR w.address = $4)
-          AND (i.status IN ('open','partially_paid','expired') OR (i.status IN ('paid','overpaid') AND i.paid_at > $5::timestamptz - interval '30 days') OR (i.status = 'cancelled' AND i.cancelled_at > $5::timestamptz - interval '30 days'))
+        WHERE i.organization_id = $1 AND i.environment = $2
+          AND i.wallet_id IN (SELECT id FROM wallets WHERE organization_id = $1 AND environment = $2 AND address = $3)
+          AND (i.status IN ('open','partially_paid','expired') OR (i.status IN ('paid','overpaid') AND i.paid_at > $4::timestamptz - interval '30 days') OR (i.status = 'cancelled' AND i.cancelled_at > $4::timestamptz - interval '30 days'))
+          AND (i.customer_id = $5 OR i.amount_due - i.amount_paid - i.amount_written_off = $6::numeric OR i.amount_due = $6::numeric)
         ORDER BY i.id ${lockInvoices ? "FOR UPDATE OF i" : ""}`,
-      [payment.organization_id, payment.environment, wallet.id, wallet.address, payment.block_timestamp]
+      [payment.organization_id, payment.environment, wallet.address, payment.block_timestamp, sender?.customer_id ?? null, payment.amount]
     )
   ).rows as Row[];
+
+  // Suggestions for an operator when nothing matches: the open invoices this could partly pay, closest
+  // first. The matcher shows at most five and never applies a payment to them, so they aren't locked.
+  if (payment.asset_id) {
+    const fits = (
+      await client.query(
+        `SELECT i.*, c.name AS customer_name, w.address AS wallet_address
+           FROM invoices i JOIN customers c ON c.id = i.customer_id JOIN wallets w ON w.id = i.wallet_id
+          WHERE i.organization_id = $1 AND i.wallet_id = $2 AND i.asset_id = $3 AND i.status IN ('open','partially_paid')
+            AND i.issued_at <= $4::timestamptz + interval '5 minutes' AND (i.expires_at IS NULL OR i.expires_at >= $4::timestamptz)
+            AND i.amount_due - i.amount_paid - i.amount_written_off > $5::numeric
+          ORDER BY i.amount_due - i.amount_paid - i.amount_written_off, i.id
+          LIMIT 5`,
+        [payment.organization_id, wallet.id, payment.asset_id, payment.block_timestamp, payment.amount]
+      )
+    ).rows as Row[];
+    const have = new Set(invoices.map((i) => i.id));
+    // Appended after the id-ordered rows: they only feed the partial-fit suggestions, which sort themselves.
+    for (const f of fits) if (!have.has(f.id)) invoices.push(f);
+  }
 
   let intentRef: PaymentIntentRef | null = null;
   if (payment.payment_intent_id) {
@@ -577,14 +610,6 @@ async function decide(client: Client, paymentId: string, lockInvoices: boolean):
       if (extra) invoices.push(extra);
     }
   }
-
-  const sender = (
-    await client.query(
-      `SELECT ca.customer_id, c.name FROM customer_addresses ca JOIN customers c ON c.id = ca.customer_id
-        WHERE ca.organization_id = $1 AND ca.chain_id = $2 AND ca.address = $3 AND c.archived_at IS NULL`,
-      [payment.organization_id, payment.chain_id, payment.from_address]
-    )
-  ).rows[0];
 
   const asset = payment.asset_id ? networks().asset(payment.asset_id)?.asset : undefined;
   return matchPayment(

@@ -37,16 +37,35 @@ single fork, one file at a time. (An earlier configuration let them interleave; 
 
 ### Performance
 
-| Measurement | Result |
-|---|---|
-| API list endpoints (payments, invoices, exceptions, customers, wallets, events; limit 50) | 7–13 ms average |
-| Settlement through the full pipeline, 400 open invoices on one wallet | ~30 ms per payment, flat as invoices are paid |
-| Same, 2,000 open invoices on one wallet | ~90–125 ms per payment (measured under concurrent Docker build load) |
-| Candidate query at 2,000 open invoices | 6 ms in Postgres; ~30 ms including row transfer. Row locks are not the cost |
+`npx tsx scripts/perf/load-test.ts` seeds a busy workspace through the real pipeline (6,000 invoices
+paid over a year, 2,000 open, 300 customers: 20,000 journal entries, 40,000 lines) into its own
+`setra_perf_*` databases, then measures every run on a fresh copy of the same data. Results below
+are medians on a laptop with Postgres in Docker Desktop, before and after the September 2026
+performance work.
 
-Matching reads every open invoice on the receiving wallet (needed to explain ambiguity and near
-misses), so decision cost grows linearly, about 15 µs per open invoice. List queries use keyset
-pagination on composite indexes and batch related rows (no N+1).
+| Measurement | Before | After |
+|---|---|---|
+| Cash flow, 12 months | 6,687 ms | 114 ms |
+| General ledger, first page | 325 ms | 8 ms |
+| General ledger, deep page (offset 36,000) | 412 ms | 114 ms |
+| Wallet ledger with running balance, deep page | 72 ms | 50 ms |
+| Trial balance / profit and loss / balance sheet | 70–71 ms | 45–46 ms |
+| Receivables aging | 93 ms | 63 ms |
+| Books health | 278 ms | 231 ms |
+| Payment for an open invoice, 2,000 open (p50 / p95) | 137 / 179 ms | 105 / 136 ms |
+| Unidentified payment (p50 / p95) | 115 / 148 ms | 77 / 98 ms |
+| API list endpoints (payments, invoices, exceptions, customers, wallets, events; limit 50) | 7–13 ms average | unchanged |
+
+What changed: the cash flow report categorizes a period with three batched queries instead of up to
+eight per entry; matching reads and locks only the invoices a rule can settle or cite (the sender's
+own and exact-amount matches, plus the five closest partial fits as unlocked suggestions) instead of
+every open and recently paid invoice on the wallet, which also removes most lock contention between
+concurrent payments; general ledger pages are cut from the lines-and-entries join before details are
+attached, and walk an index in ledger order; account balances aggregate lines once per account.
+
+A payment is now bound by round trips (about 100 queries across detection and settlement, ~1 ms
+each here), not by the size of the books or the number of open invoices. Reports that sum the whole
+ledger (balances, books health) still grow linearly with it.
 
 ## Live Monad checks
 

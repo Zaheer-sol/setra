@@ -72,6 +72,32 @@ describe("idempotency: duplicate source facts never duplicate economic effects",
   });
 });
 
+describe("matching reads only the invoices a rule can use", () => {
+  it("suggests the five closest partial fits for an unidentified payment among many open invoices, without touching the rest", async () => {
+    const ws = await workspace();
+    const amounts = ["140.00", "100.00", "300.00", "120.00", "110.00", "250.00", "130.00", "90.00", "150.00"];
+    const invoices = [];
+    for (const a of amounts) invoices.push(await invoice(ws, "Acme Ltd", a));
+    const r = await ingest(ws, transfer(ws, usd("95"), randomAddress()), "settled");
+    const p = await paymentFor(ws, r.observationId!);
+    expect(p.status).toBe("needs_review");
+    const [decision] = await q(ws, "SELECT * FROM match_decisions WHERE payment_id = $1 AND stage = 'final'", [p.id]);
+    // 90.00 is smaller than the payment, so it can't be a partial payment; the rest are ranked by how close they are.
+    expect(decision.candidates.map((c: { amountRemaining: string }) => c.amountRemaining)).toEqual(["100.00", "110.00", "120.00", "130.00", "140.00"].map((a) => usd(a).toString()));
+    for (const i of invoices) expect((await inv(ws, i.id)).amount_paid).toBe("0");
+  });
+
+  it("still matches the one exact amount from an unknown sender when many invoices are open", async () => {
+    const ws = await workspace();
+    for (const a of ["10.00", "20.00", "30.00", "40.00"]) await invoice(ws, "Nova Systems", a);
+    const target = await invoice(ws, "Acme Ltd", "33.33");
+    const r = await ingest(ws, transfer(ws, usd("33.33"), randomAddress()), "settled");
+    const p = await paymentFor(ws, r.observationId!);
+    expect(p.status).toBe("matched");
+    expect(p.invoice_id).toBe(target.id);
+  });
+});
+
 describe("partial, multi-payment and overpayment", () => {
   it("tracks a partial payment, then settles on the second payment and closes the exception with history", async () => {
     const ws = await workspace();

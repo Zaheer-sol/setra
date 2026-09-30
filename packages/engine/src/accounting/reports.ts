@@ -51,14 +51,16 @@ export async function accountBalances(client: Client, organizationId: string, en
   const rows = (
     await client.query(
       `SELECT a.id, a.code, a.name, a.type, a.subtype, a.normal_balance, a.system_key, a.wallet_id, a.archived_at,
-              COALESCE(sum(l.debit), 0)::text AS debits, COALESCE(sum(l.credit), 0)::text AS credits
+              COALESCE(t.debits, 0)::text AS debits, COALESCE(t.credits, 0)::text AS credits
          FROM ledger_accounts a
-         LEFT JOIN journal_lines l ON l.account_id = a.id
-              AND EXISTS (SELECT 1 FROM journal_entries e WHERE e.id = l.entry_id AND e.status = 'posted'
-                            AND ($3::date IS NULL OR e.entry_date >= $3::date) AND ($4::date IS NULL OR e.entry_date <= $4::date)
-                            AND (NOT $5::boolean OR e.source_type <> 'year_end'))
+         LEFT JOIN (
+              SELECT l.account_id, sum(l.debit) AS debits, sum(l.credit) AS credits
+                FROM journal_lines l JOIN journal_entries e ON e.id = l.entry_id
+               WHERE l.organization_id = $1 AND l.environment = $2 AND e.status = 'posted'
+                 AND ($3::date IS NULL OR e.entry_date >= $3::date) AND ($4::date IS NULL OR e.entry_date <= $4::date)
+                 AND (NOT $5::boolean OR e.source_type <> 'year_end')
+               GROUP BY l.account_id) t ON t.account_id = a.id
         WHERE a.organization_id = $1 AND a.environment = $2
-        GROUP BY a.id
         ORDER BY a.code`,
       [organizationId, environment, from, to, range.excludeClosing ?? false]
     )
@@ -193,25 +195,28 @@ export async function cashFlow(client: Client, organizationId: string, environme
   const clearing = (await client.query("SELECT id FROM ledger_accounts WHERE organization_id = $1 AND environment = $2 AND system_key = 'transfers_to_classify'", [organizationId, environment])).rows[0]?.id as string | undefined;
   const opening = await cashBalance(client, organizationId, environment, cash, dayBefore(from));
   const closing = await cashBalance(client, organizationId, environment, cash, to);
+  // A reversal is categorized by the entry it reverses.
   const entries = (
     await client.query(
-      `SELECT e.id, e.source_type, e.source_id, e.reverses_entry_id FROM journal_entries e
+      `SELECT e.id, COALESCE(r.source_type, e.source_type) AS source_type, COALESCE(r.source_id, e.source_id) AS source_id
+         FROM journal_entries e LEFT JOIN journal_entries r ON r.id = e.reverses_entry_id
         WHERE e.organization_id = $1 AND e.environment = $2 AND e.status = 'posted' AND e.entry_date BETWEEN $3::date AND $4::date
           AND EXISTS (SELECT 1 FROM journal_lines l WHERE l.entry_id = e.id AND l.account_id = ANY($5))
         ORDER BY e.entry_date, e.id`,
       [organizationId, environment, from, to, cash]
     )
   ).rows as Row[];
+  const facts = await cashFlowFacts(client, entries);
   const totals = new Map<CashCategory, bigint>();
   const add = (c: CashCategory, v: bigint) => totals.set(c, (totals.get(c) ?? 0n) + v);
   for (const e of entries) {
-    const lines = (await client.query("SELECT l.*, a.type, a.subtype, a.system_key FROM journal_lines l JOIN ledger_accounts a ON a.id = l.account_id WHERE l.entry_id = $1", [e.id])).rows as Row[];
+    const lines = facts.lines.get(e.id) ?? [];
     const delta = lines.filter((l) => cashSet.has(l.account_id)).reduce((s, l) => s + BigInt(l.debit) - BigInt(l.credit), 0n);
     if (delta === 0n) {
       if (lines.every((l) => cashSet.has(l.account_id))) add("internal_transfers", 0n);
       continue;
     }
-    add(await categorize(client, e, lines, cashSet, clearing), delta);
+    add(categorize(e, lines, cashSet, clearing, facts), delta);
   }
   const section = (cats: CashCategory[]) => cats.filter((c) => totals.has(c)).map((c) => ({ category: c, label: CASH_LABEL[c], amount: money(totals.get(c)!) }));
   const operatingCats: CashCategory[] = ["customer_payments", "unidentified_receipts", "refunds", "expenses_paid", "bills_paid", "unclassified_outgoing", "other_operating"];
@@ -231,25 +236,56 @@ export async function cashFlow(client: Client, organizationId: string, environme
   };
 }
 
-async function categorize(client: Client, e: Row, lines: Row[], cashSet: Set<string>, clearing: string | undefined): Promise<CashCategory> {
+interface CashFlowFacts {
+  lines: Map<string, Row[]>;
+  paymentInvoice: Map<string, string | null>;
+  transfers: Map<string, Row>;
+}
+
+/** Everything categorizing needs, in three queries for the whole period instead of several per entry. */
+async function cashFlowFacts(client: Client, entries: Row[]): Promise<CashFlowFacts> {
+  const ids = entries.map((e) => e.id as string);
+  const lines = new Map<string, Row[]>();
+  for (const l of (await client.query("SELECT l.entry_id, l.account_id, l.debit, l.credit, a.type, a.system_key FROM journal_lines l JOIN ledger_accounts a ON a.id = l.account_id WHERE l.entry_id = ANY($1)", [ids])).rows as Row[]) {
+    const list = lines.get(l.entry_id);
+    if (list) list.push(l);
+    else lines.set(l.entry_id, [l]);
+  }
+  const sourceIds = (type: string) => [...new Set(entries.filter((e) => e.source_type === type).map((e) => e.source_id as string))];
+  const paymentInvoice = new Map<string, string | null>();
+  for (const p of (await client.query("SELECT id, invoice_id FROM payments WHERE id = ANY($1)", [sourceIds("payment")])).rows as Row[]) paymentInvoice.set(p.id, p.invoice_id);
+  const transfers = new Map<string, Row>();
+  for (const t of (
+    await client.query(
+      `SELECT t.id,
+              EXISTS (SELECT 1 FROM wallets w WHERE w.organization_id = t.organization_id AND w.environment = t.environment AND w.chain_id = t.chain_id AND w.address = t.to_address) AS own,
+              EXISTS (SELECT 1 FROM refunds r WHERE r.outgoing_transfer_id = t.id) AS refund,
+              EXISTS (SELECT 1 FROM bill_payments b WHERE b.outgoing_transfer_id = t.id) AS bill,
+              EXISTS (SELECT 1 FROM expenses x WHERE x.outgoing_transfer_id = t.id AND x.status = 'approved') AS expense,
+              (SELECT a.type FROM transaction_classifications c JOIN ledger_accounts a ON a.id = c.account_id WHERE c.outgoing_transfer_id = t.id AND c.reversed_at IS NULL LIMIT 1) AS classified_type
+         FROM outgoing_transfers t WHERE t.id = ANY($1)`,
+      [sourceIds("outgoing_transfer")]
+    )
+  ).rows as Row[])
+    transfers.set(t.id, t);
+  return { lines, paymentInvoice, transfers };
+}
+
+function categorize(e: Row, lines: Row[], cashSet: Set<string>, clearing: string | undefined, facts: CashFlowFacts): CashCategory {
   const counter = lines.filter((l) => !cashSet.has(l.account_id));
   if (counter.length === 0) return "internal_transfers";
-  const sourceEntry = e.reverses_entry_id ? ((await client.query("SELECT source_type, source_id FROM journal_entries WHERE id = $1", [e.reverses_entry_id])).rows[0] as Row) : e;
-  if (sourceEntry.source_type === "payment") {
+  if (e.source_type === "payment") {
     if (counter.every((l) => l.account_id === clearing)) return "internal_transfers";
-    const p = (await client.query("SELECT invoice_id, status FROM payments WHERE id = $1", [sourceEntry.source_id])).rows[0] as Row | undefined;
-    return p?.invoice_id ? "customer_payments" : "unidentified_receipts";
+    return facts.paymentInvoice.get(e.source_id) ? "customer_payments" : "unidentified_receipts";
   }
-  if (sourceEntry.source_type === "outgoing_transfer") {
-    const t = (await client.query("SELECT * FROM outgoing_transfers WHERE id = $1", [sourceEntry.source_id])).rows[0] as Row | undefined;
+  if (e.source_type === "outgoing_transfer") {
+    const t = facts.transfers.get(e.source_id);
     if (!t) return "unclassified_outgoing";
-    const own = (await client.query("SELECT 1 FROM wallets WHERE organization_id = $1 AND environment = $2 AND chain_id = $3 AND address = $4", [t.organization_id, t.environment, t.chain_id, t.to_address])).rows[0];
-    if (own) return "internal_transfers";
-    if ((await client.query("SELECT 1 FROM refunds WHERE outgoing_transfer_id = $1", [t.id])).rows[0]) return "refunds";
-    if ((await client.query("SELECT 1 FROM bill_payments WHERE outgoing_transfer_id = $1", [t.id])).rows[0]) return "bills_paid";
-    if ((await client.query("SELECT 1 FROM expenses WHERE outgoing_transfer_id = $1 AND status = 'approved'", [t.id])).rows[0]) return "expenses_paid";
-    const cls = (await client.query("SELECT a.type FROM transaction_classifications c JOIN ledger_accounts a ON a.id = c.account_id WHERE c.outgoing_transfer_id = $1 AND c.reversed_at IS NULL", [t.id])).rows[0] as Row | undefined;
-    if (cls) return cls.type === "equity" ? "financing" : "other_operating";
+    if (t.own) return "internal_transfers";
+    if (t.refund) return "refunds";
+    if (t.bill) return "bills_paid";
+    if (t.expense) return "expenses_paid";
+    if (t.classified_type) return t.classified_type === "equity" ? "financing" : "other_operating";
     return "unclassified_outgoing";
   }
   if (counter.some((l) => l.type === "equity")) return "financing";
@@ -295,7 +331,8 @@ export interface LedgerFilters {
 /** Posted ledger lines with their entry, account and source; a running balance when one account is selected. */
 export async function generalLedger(client: Client, organizationId: string, environment: Environment, f: LedgerFilters) {
   checkRange(f.from ?? null, f.to ?? null);
-  const where = ["l.organization_id = $1", "l.environment = $2", "e.status = 'posted'"];
+  // The entry-side conditions let Postgres walk entries in ledger order and stop after one page.
+  const where = ["l.organization_id = $1", "l.environment = $2", "e.organization_id = $1", "e.environment = $2", "e.status = 'posted'"];
   const params: unknown[] = [organizationId, environment];
   const add = (sql: string, v: unknown) => {
     params.push(v);
@@ -317,22 +354,27 @@ export async function generalLedger(client: Client, organizationId: string, envi
   }
   const limit = Math.min(Math.max(f.limit ?? 100, 1), 500);
   const offset = Math.max(f.offset ?? 0, 0);
+  // Page over the narrow lines-and-entries join first (every filter is on one of those two tables),
+  // then attach the account, customer, invoice and payment to just the rows on the page.
   const rows = (
     await client.query(
       `SELECT l.*, e.number, e.entry_date, e.description, e.source_type, e.source_id, e.reverses_entry_id, e.memo AS entry_memo,
               a.code AS account_code, a.name AS account_name, a.type AS account_type, a.normal_balance,
               c.name AS customer_name, v.name AS vendor_name, i.number AS invoice_number, i.title AS invoice_title,
               p.transaction_hash, p.source AS payment_source
-         FROM journal_lines l
+         FROM (SELECT l.id, e.entry_date AS page_date, e.id AS page_entry, l.position AS page_position
+                 FROM journal_lines l JOIN journal_entries e ON e.id = l.entry_id
+                WHERE ${where.join(" AND ")}
+                ORDER BY e.entry_date, e.id, l.position
+                LIMIT ${limit + 1} OFFSET ${offset}) pg
+         JOIN journal_lines l ON l.id = pg.id
          JOIN journal_entries e ON e.id = l.entry_id
          JOIN ledger_accounts a ON a.id = l.account_id
          LEFT JOIN customers c ON c.id = l.customer_id
          LEFT JOIN vendors v ON v.id = l.vendor_id
          LEFT JOIN invoices i ON i.id = l.invoice_id
          LEFT JOIN payments p ON p.id = l.payment_id
-        WHERE ${where.join(" AND ")}
-        ORDER BY e.entry_date, e.id, l.position
-        LIMIT ${limit + 1} OFFSET ${offset}`,
+        ORDER BY pg.page_date, pg.page_entry, pg.page_position`,
       params
     )
   ).rows as Row[];
@@ -356,15 +398,14 @@ export async function generalLedger(client: Client, organizationId: string, envi
     opening = signed(BigInt(before.rows[0]!.d), BigInt(before.rows[0]!.c));
     running = opening;
     if (offset > 0) {
-      const skipped = (
-        await client.query(
-          `SELECT l.debit, l.credit FROM journal_lines l JOIN journal_entries e ON e.id = l.entry_id JOIN ledger_accounts a ON a.id = l.account_id
-            LEFT JOIN customers c ON c.id = l.customer_id LEFT JOIN vendors v ON v.id = l.vendor_id LEFT JOIN invoices i ON i.id = l.invoice_id LEFT JOIN payments p ON p.id = l.payment_id
-            WHERE ${where.join(" AND ")} ORDER BY e.entry_date, e.id, l.position LIMIT ${offset}`,
-          params
-        )
-      ).rows as Row[];
-      for (const s of skipped) running += signed(BigInt(s.debit), BigInt(s.credit));
+      // The rows on earlier pages, summed in the database rather than sent here one by one.
+      const skipped = await client.query<{ d: string; c: string }>(
+        `SELECT COALESCE(sum(s.debit), 0)::text AS d, COALESCE(sum(s.credit), 0)::text AS c FROM (
+           SELECT l.debit, l.credit FROM journal_lines l JOIN journal_entries e ON e.id = l.entry_id
+            WHERE ${where.join(" AND ")} ORDER BY e.entry_date, e.id, l.position LIMIT ${offset}) s`,
+        params
+      );
+      running += signed(BigInt(skipped.rows[0]!.d), BigInt(skipped.rows[0]!.c));
     }
   }
   const lines = page.map((l) => {
