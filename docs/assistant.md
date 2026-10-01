@@ -54,6 +54,23 @@ message → parser (typed intent) → orchestrator → Setra API (in-process, as
   shown verbatim and can't inject anything.
 - **Console only.** API keys can't use the assistant.
 
+## Optional language model
+
+Seti's parser is deterministic and handles the phrasings above on its own. For messages it doesn't
+understand, an optional language model can translate the message into one of the same intents. The
+model sees only the message: never the books, balances or customer list. Its answer must match one of
+Seti's intent shapes exactly, amounts and names are kept only when the message itself states them, and
+anything that creates a record still asks for confirmation. Without a key, or when the provider is
+slow (6 seconds) or fails, Seti answers exactly as it does without a model.
+
+Any OpenAI-compatible chat completions API works, set on the API service:
+
+| Variable | Default | |
+|---|---|---|
+| `LLM_API_KEY` | (none: model off) | The provider's API key |
+| `LLM_BASE_URL` | `https://api.groq.com/openai/v1` | Groq's free tier by default |
+| `LLM_MODEL` | `llama-3.3-70b-versatile` | |
+
 ## Notifications
 
 The bell in the top bar shows business-ready cards for payment events, and a toast appears when one

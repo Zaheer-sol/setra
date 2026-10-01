@@ -6,6 +6,7 @@ import { ASSISTANT_TOKEN } from "../lib/internal";
 import type { Permission } from "../lib/principal";
 import type { Block, InvoiceCard, Link, PaymentCard, Row } from "./blocks";
 import { applyFinancialAction, financial } from "./financial-intents";
+import { understand } from "./language-model";
 import { clean, findAmount, normalizeAmount, parseIntent, periodStart, resolveDue, titleCase, type Intent, type Period } from "./intent-parser";
 
 /**
@@ -261,7 +262,8 @@ async function respondInner(ctx: AssistantContext, text: string, choice?: string
     if (continued) return continued;
   }
 
-  const intent = parseIntent(text);
+  // Rules first; the optional language model only for messages they don't understand.
+  const intent = await understand(text);
   switch (intent.kind) {
     case "create_request":
       return createFlow(ctx, draftFrom(ctx, intent));
