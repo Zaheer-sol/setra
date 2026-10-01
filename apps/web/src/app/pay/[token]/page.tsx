@@ -8,6 +8,7 @@ import { createPublicClient, createWalletClient, custom, defineChain, http, type
 import { AlertCircle, CheckCircle2, Clock, ExternalLink, FlaskConical, Lock, Mail, QrCode, Wallet, XCircle } from "lucide-react";
 import { ERC20_ABI_MIN, PAYMENT_INTENT_PAY_ABI } from "@/lib/abi";
 import { useApi } from "@/lib/api";
+import { useInjectedWallets, type InjectedWallet } from "@/lib/browser-wallets";
 import { dateShort, money, moneyParts, shortAddress } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ChainMark, LineItems, Segmented, Spinner } from "@/components/app-ui";
@@ -304,42 +305,6 @@ const DYNAMIC_ENV = process.env.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID;
 const EmailWallet = nextDynamic(() => import("./email-wallet"), { ssr: false });
 
 type Stage = { kind: "idle" } | { kind: "working"; label: string } | { kind: "submitted"; hash: Hex } | { kind: "error"; message: string };
-
-interface InjectedWallet {
-  id: string;
-  name: string;
-  icon?: string;
-  provider: EIP1193Provider;
-}
-
-/**
- * Discover installed browser wallets. EIP-6963 lets every extension announce itself, so a browser
- * with several wallets installed doesn't depend on whichever one grabbed window.ethereum.
- */
-function useInjectedWallets(): InjectedWallet[] | null {
-  const [wallets, setWallets] = useState<InjectedWallet[] | null>(null);
-  useEffect(() => {
-    const found = new Map<string, InjectedWallet>();
-    const onAnnounce = (event: Event) => {
-      const detail = (event as CustomEvent<{ info: { uuid: string; name: string; icon: string; rdns: string }; provider: EIP1193Provider }>).detail;
-      if (!detail?.provider || !detail.info) return;
-      found.set(detail.info.rdns || detail.info.uuid, { id: detail.info.rdns || detail.info.uuid, name: detail.info.name, icon: detail.info.icon, provider: detail.provider });
-      setWallets([...found.values()]);
-    };
-    window.addEventListener("eip6963:announceProvider", onAnnounce);
-    window.dispatchEvent(new Event("eip6963:requestProvider"));
-    // Legacy wallets only expose window.ethereum.
-    const timer = setTimeout(() => {
-      if (found.size === 0 && window.ethereum) found.set("injected", { id: "injected", name: "Browser wallet", provider: window.ethereum });
-      setWallets([...found.values()]);
-    }, 400);
-    return () => {
-      window.removeEventListener("eip6963:announceProvider", onAnnounce);
-      clearTimeout(timer);
-    };
-  }, []);
-  return wallets;
-}
 
 function friendlyError(e: unknown): string {
   const err = e as { shortMessage?: string; message?: string; code?: number };

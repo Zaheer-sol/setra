@@ -189,7 +189,8 @@ const summary = await withTenant(orgId, async (c) => {
     user.id
   ]);
   const secret = engine.newWebhookSecret();
-  await c.query(
+  // Local development only: a hosted demo can't reach localhost, and production refuses plain http.
+  if (!productionSeed) await c.query(
     `INSERT INTO webhook_endpoints (id, organization_id, environment, url, description, event_types, secret_ciphertext, secret_hint, created_by)
      VALUES ($1,$2,'test','http://localhost:4040/webhooks','Local demo receiver (npm run webhook-receiver)',$3,$4,$5,$6)`,
     [newId("webhookEndpoint"), orgId, ["payment.matched", "payment.partially_paid", "payment.overpaid", "payment.unknown", "payment.reversed", "webhook.test"], secret.ciphertext, secret.hint, user.id]

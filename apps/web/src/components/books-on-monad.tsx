@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { createPublicClient, createWalletClient, custom, defineChain, http, type Address, type EIP1193Provider, type Hex } from "viem";
+import { createPublicClient, createWalletClient, custom, defineChain, http, type Address, type Hex } from "viem";
 import { AlertTriangle, ExternalLink, ShieldCheck } from "lucide-react";
 import { Button, useToast } from "@/components/app-ui";
 import { useSession } from "@/components/session";
-import { api, useApi, type ApiError } from "@/lib/api";
+import { api, useApi } from "@/lib/api";
+import { useInjectedWallets, walletDeclined, walletErrorMessage, type InjectedWallet } from "@/lib/browser-wallets";
 import { shortAddress, timeAgo } from "@/lib/format";
 
 interface Attestation {
@@ -41,21 +42,14 @@ const ATTEST_ABI = [
   }
 ] as const;
 
-/** The first browser wallet that announces itself (EIP-6963), or the classic injected one. */
-function browserWallet(): Promise<EIP1193Provider | null> {
-  return new Promise((resolve) => {
-    let found: EIP1193Provider | null = null;
-    const onAnnounce = (e: Event) => {
-      found ??= (e as CustomEvent<{ provider: EIP1193Provider }>).detail?.provider ?? null;
-    };
-    window.addEventListener("eip6963:announceProvider", onAnnounce);
-    window.dispatchEvent(new Event("eip6963:requestProvider"));
-    setTimeout(() => {
-      window.removeEventListener("eip6963:announceProvider", onAnnounce);
-      resolve(found ?? ((window as unknown as { ethereum?: EIP1193Provider }).ethereum ?? null));
-    }, 300);
-  });
-}
+const REMEMBERED = "setra:books-wallet";
+const remembered = () => {
+  try {
+    return localStorage.getItem(REMEMBERED);
+  } catch {
+    return null;
+  }
+};
 
 /**
  * Publish a closed month's fingerprint on Monad from the business's own wallet, and show whether the
@@ -66,35 +60,66 @@ export function BooksOnMonad({ month, label }: { month: string; label: string })
   const toast = useToast();
   const { data, mutate } = useApi<Status>(`/v1/accounting/periods/${month}/books-attestation`, { revalidateOnFocus: false });
   const [step, setStep] = useState<string | null>(null);
+  const [choosing, setChoosing] = useState(false);
+  const wallets = useInjectedWallets();
 
   if (!data?.contract || data.state === "not_closed") return null;
   const contract = data.contract;
   const latest = data.attestations[0];
 
-  const publish = async () => {
+  // With several wallets installed, the person picks one (and it's remembered); with one, it's used directly.
+  const start = () => {
+    if (!wallets?.length) {
+      toast("error", "Open this page in a browser with a wallet such as MetaMask to publish.");
+      return;
+    }
+    const known = wallets.find((w) => w.id === remembered());
+    if (wallets.length === 1 || known) void publish(known ?? wallets[0]!);
+    else setChoosing(true);
+  };
+
+  const publish = async (wallet: InjectedWallet) => {
+    setChoosing(false);
     try {
-      setStep("Connecting your wallet…");
-      const provider = await browserWallet();
-      if (!provider) throw new Error("Open this page in a browser with a wallet such as MetaMask to publish.");
+      localStorage.setItem(REMEMBERED, wallet.id);
+    } catch {
+      // Not remembered; it will ask again next time.
+    }
+    // Which request is open in the wallet, so a decline or failure says where it happened.
+    let action = "connection request";
+    try {
+      setStep(`Connecting ${wallet.name}…`);
       const chain = defineChain({ id: contract.chain_id, name: contract.network, nativeCurrency: { name: "MON", symbol: "MON", decimals: 18 }, rpcUrls: { default: { http: [contract.rpc_url] } } });
-      const wallet = createWalletClient({ chain, transport: custom(provider) });
-      const [account] = await wallet.requestAddresses();
+      const client = createWalletClient({ chain, transport: custom(wallet.provider) });
+      const [account] = await client.requestAddresses();
       if (!account) throw new Error("No wallet account was shared.");
-      if ((await wallet.getChainId()) !== chain.id) {
-        setStep(`Switching your wallet to ${contract.network}…`);
-        await wallet.switchChain({ id: chain.id }).catch(() => wallet.addChain({ chain }));
+      if ((await client.getChainId()) !== chain.id) {
+        action = `switch to ${contract.network}`;
+        setStep(`Switching ${wallet.name} to ${contract.network}…`);
+        await client.switchChain({ id: chain.id }).catch(async (e) => {
+          if (walletDeclined(e)) throw e;
+          await client.addChain({ chain });
+        });
       }
+      action = "transaction";
       setStep("Confirm in your wallet…");
-      const hash = await wallet.writeContract({ account, chain, address: contract.address, abi: ATTEST_ABI, functionName: "attest", args: [data.book, data.period, data.root, data.entry_count] });
+      const hash = await client.writeContract({ account, chain, address: contract.address, abi: ATTEST_ABI, functionName: "attest", args: [data.book, data.period, data.root, data.entry_count] });
+      action = "wait for Monad";
       setStep("Waiting for Monad…");
       await createPublicClient({ chain, transport: http(contract.rpc_url) }).waitForTransactionReceipt({ hash });
+      action = "check against your books";
       setStep("Checking it against your books…");
       await api(`/v1/accounting/periods/${month}/books-attestation`, { method: "POST", body: { transaction_hash: hash } });
       toast("success", `${label} is published on ${contract.network}.`);
       mutate();
     } catch (e) {
-      const message = (e as ApiError).message ?? String(e);
-      toast("error", /rejected|denied/i.test(message) ? "Nothing was published: the wallet request was declined." : message);
+      console.error(`Publish to ${contract.network} failed at the ${action}`, e);
+      toast(
+        "error",
+        walletDeclined(e)
+          ? `Nothing was published: ${wallet.name} declined the ${action}.`
+          : `Publishing stopped at the ${action}: ${walletErrorMessage(e, "it didn't go through")}`
+      );
     } finally {
       setStep(null);
     }
@@ -120,10 +145,28 @@ export function BooksOnMonad({ month, label }: { month: string; label: string })
       ) : (
         <span className="text-muted-foreground">Not published on {contract.network} yet.</span>
       )}
-      {can("financials:manage") && data.state !== "published" && (
-        <Button size="sm" variant="ghost" loading={!!step} onClick={publish}>
+      {can("financials:manage") && data.state !== "published" && !choosing && (
+        <Button size="sm" variant="ghost" loading={!!step} onClick={start}>
           {step ?? (data.state === "changed" ? "Publish again" : `Publish to ${contract.network}`)}
         </Button>
+      )}
+      {can("financials:manage") && data.state !== "published" && !choosing && !step && (wallets?.length ?? 0) > 1 && remembered() && (
+        <button type="button" onClick={() => setChoosing(true)} className="cursor-pointer text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
+          Use another wallet
+        </button>
+      )}
+      {choosing && wallets && (
+        <div className="flex w-full flex-wrap items-center gap-2" role="group" aria-label="Choose a wallet">
+          <span className="text-muted-foreground">Publish with:</span>
+          {wallets.map((w) => (
+            <Button key={w.id} size="sm" variant="secondary" onClick={() => void publish(w)} icon={w.icon ? <img src={w.icon} alt="" className="size-4 rounded" /> : undefined}>
+              {w.name}
+            </Button>
+          ))}
+          <Button size="sm" variant="ghost" onClick={() => setChoosing(false)}>
+            Cancel
+          </Button>
+        </div>
       )}
     </div>
   );
