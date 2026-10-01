@@ -33,7 +33,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   // Hide the Next.js dev-mode badge so local demos look like the real product.
   devIndicators: false,
-  transpilePackages: ["@setra/schemas"],
+  transpilePackages: ["@setra/schemas", "@setra/contracts-client"],
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

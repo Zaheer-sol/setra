@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { booksAttestationStatus, readBooksAttestation, recordBooksAttestation } from "@setra/engine";
+import { booksAttestationStatus, booksPublication, readBooksAttestation, recordBooksAttestation } from "@setra/engine";
 import { booksAttestationInput, monthParam } from "@setra/schemas";
 import { route } from "../../lib/route";
 
@@ -13,6 +13,17 @@ export function booksAttestationRoutes(app: FastifyInstance) {
     permission: "financials:read",
     params: monthParam,
     handler: ({ tx, params, organizationId, environment }) => tx((c) => booksAttestationStatus(c, organizationId, environment, params.month))
+  });
+
+  route(app, {
+    method: "GET",
+    url: "/v1/accounting/periods/:month/books-publication",
+    summary: "What a publication can carry: the fingerprint, the month's entries (encrypted in the browser before publishing) and public statements",
+    tags: ["accounting"],
+    permission: "financials:manage",
+    sessionOnly: true,
+    params: monthParam,
+    handler: ({ tx, params, organizationId, environment }) => tx((c) => booksPublication(c, organizationId, environment, params.month))
   });
 
   route(app, {

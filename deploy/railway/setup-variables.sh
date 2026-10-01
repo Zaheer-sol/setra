@@ -45,6 +45,8 @@ if [ -f "$DEPLOYMENT" ]; then
   ' "$DEPLOYMENT")
   [ -n "${PI_ADDRESS:-}" ] && CHAIN+=("MONAD_TESTNET_PAYMENT_INTENT_ADDRESS=$PI_ADDRESS" "MONAD_TESTNET_PAYMENT_INTENT_DEPLOY_BLOCK=$PI_BLOCK")
   [ -n "${BA_ADDRESS:-}" ] && CHAIN+=("MONAD_TESTNET_BOOKS_ATTESTATION_ADDRESS=$BA_ADDRESS")
+  BA_PREVIOUS=$(node -e 'const d = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")); console.log((d.history ?? []).filter((h) => h.contract === "SetraBooksAttestation").map((h) => h.address).join(","))' "$DEPLOYMENT")
+  [ -n "$BA_PREVIOUS" ] && CHAIN+=("MONAD_TESTNET_BOOKS_ATTESTATION_PREVIOUS=$BA_PREVIOUS")
   echo "Using contract addresses from $DEPLOYMENT."
 fi
 

@@ -14,7 +14,15 @@ pragma solidity 0.8.30;
 ///
 ///         `book` identifies the set of books (Setra derives it from the workspace and its mode), and
 ///         `period` is the month as YYYYMM, e.g. 202608 for August 2026.
+///
+///         `publish` does the same and, in the same transaction, can put the books themselves on chain
+///         as event data: an encrypted copy of the month's entries (readable only with the passphrase
+///         the business chose, which never leaves its browser) and/or public statements (totals anyone
+///         can read). Neither is kept in contract storage; both stay in the chain's logs.
 contract SetraBooksAttestation {
+    /// @notice Largest encrypted-books or statements payload accepted, in bytes.
+    uint256 public constant MAX_PAYLOAD = 98_304;
+
     struct Attestation {
         bytes32 root;
         uint32 entryCount;
@@ -28,11 +36,38 @@ contract SetraBooksAttestation {
         address indexed publisher, bytes32 indexed book, uint32 indexed period, bytes32 root, uint32 entryCount, uint32 version
     );
 
+    event BooksPublished(
+        address indexed publisher, bytes32 indexed book, uint32 indexed period, uint32 version, bytes encryptedBooks, bytes statements
+    );
+
     error EmptyRoot();
     error InvalidPeriod(uint32 period);
+    error PayloadTooLarge(uint256 length);
 
     /// @notice Attest to the books of one month. Sending the same month again records a new version.
     function attest(bytes32 book, uint32 period, bytes32 root, uint32 entryCount) external returns (uint32 version) {
+        version = _attest(book, period, root, entryCount);
+    }
+
+    /// @notice Attest to a month's books and publish them: an encrypted copy, public statements, or both
+    ///         (either may be empty). The fingerprint is recorded exactly as `attest` does.
+    function publish(
+        bytes32 book,
+        uint32 period,
+        bytes32 root,
+        uint32 entryCount,
+        bytes calldata encryptedBooks,
+        bytes calldata statements
+    ) external returns (uint32 version) {
+        if (encryptedBooks.length > MAX_PAYLOAD) revert PayloadTooLarge(encryptedBooks.length);
+        if (statements.length > MAX_PAYLOAD) revert PayloadTooLarge(statements.length);
+        version = _attest(book, period, root, entryCount);
+        if (encryptedBooks.length != 0 || statements.length != 0) {
+            emit BooksPublished(msg.sender, book, period, version, encryptedBooks, statements);
+        }
+    }
+
+    function _attest(bytes32 book, uint32 period, bytes32 root, uint32 entryCount) private returns (uint32 version) {
         if (root == bytes32(0)) revert EmptyRoot();
         uint32 month = period % 100;
         if (period < 200_001 || period > 999_912 || month == 0 || month > 12) revert InvalidPeriod(period);

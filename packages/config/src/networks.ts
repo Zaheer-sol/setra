@@ -63,6 +63,8 @@ export interface NetworkConfig {
   paymentIntent?: { address: `0x${string}`; deployBlock: bigint };
   /** SetraBooksAttestation: where a business publishes the fingerprint of a closed month. */
   booksAttestation?: `0x${string}`;
+  /** Earlier SetraBooksAttestation deployments, still genuine for publications made through them. */
+  booksAttestationPrevious: `0x${string}`[];
 }
 
 type Env = Record<string, string | undefined>;
@@ -73,6 +75,8 @@ const addr = (value: string | undefined, fallback?: string): `0x${string}` | und
   if (!/^0x[0-9a-fA-F]{40}$/.test(v)) throw new Error(`Invalid address in configuration: ${v}`);
   return v.toLowerCase() as `0x${string}`;
 };
+
+const addrList = (value: string | undefined): `0x${string}`[] => (value ?? "").split(",").map((v) => addr(v)).filter((v): v is `0x${string}` => !!v);
 
 const int = (value: string | undefined, fallback: number) => {
   if (value === undefined || value.trim() === "") return fallback;
@@ -120,7 +124,8 @@ export function loadNetworks(env: Env = process.env): NetworkConfig[] {
         ...asset("asset_monad_usdt0", "USDT0", "USDT0", 6, addr(env.MONAD_USDT0_ADDRESS, "0xe7cd86e13AC4309349F30B3435a9d337750fC82D"))
       ],
       paymentIntent: intent(env, "MONAD"),
-      booksAttestation: addr(env.MONAD_BOOKS_ATTESTATION_ADDRESS)
+      booksAttestation: addr(env.MONAD_BOOKS_ATTESTATION_ADDRESS),
+      booksAttestationPrevious: addrList(env.MONAD_BOOKS_ATTESTATION_PREVIOUS)
     },
     {
       key: "monad-testnet",
@@ -142,7 +147,8 @@ export function loadNetworks(env: Env = process.env): NetworkConfig[] {
       nativeSymbol: "MON",
       assets: [...asset("asset_monad_testnet_usdc", "USDC", "USD Coin (testnet)", 6, addr(env.MONAD_TESTNET_USDC_ADDRESS, "0x534b2f3A21130d7a60830c2Df862319e593943A3"))],
       paymentIntent: intent(env, "MONAD_TESTNET"),
-      booksAttestation: addr(env.MONAD_TESTNET_BOOKS_ATTESTATION_ADDRESS)
+      booksAttestation: addr(env.MONAD_TESTNET_BOOKS_ATTESTATION_ADDRESS),
+      booksAttestationPrevious: addrList(env.MONAD_TESTNET_BOOKS_ATTESTATION_PREVIOUS)
     },
     {
       key: "base",
@@ -168,7 +174,8 @@ export function loadNetworks(env: Env = process.env): NetworkConfig[] {
         ...asset("asset_base_eurc", "EURC", "Euro Coin", 6, addr(env.BASE_EURC_ADDRESS, "0x60a3E35Cc302bFA44Cb288Bc5a4F316Fdb1adb42"), "EUR")
       ],
       paymentIntent: intent(env, "BASE"),
-      booksAttestation: addr(env.BASE_BOOKS_ATTESTATION_ADDRESS)
+      booksAttestation: addr(env.BASE_BOOKS_ATTESTATION_ADDRESS),
+      booksAttestationPrevious: addrList(env.BASE_BOOKS_ATTESTATION_PREVIOUS)
     },
     {
       key: "base-sepolia",
@@ -193,7 +200,8 @@ export function loadNetworks(env: Env = process.env): NetworkConfig[] {
         ...asset("asset_base_sepolia_eurc", "EURC", "Euro Coin (testnet)", 6, addr(env.BASE_SEPOLIA_EURC_ADDRESS, "0x808456652fdb597867f38412077A9182bf77359F"), "EUR")
       ],
       paymentIntent: intent(env, "BASE_SEPOLIA"),
-      booksAttestation: addr(env.BASE_SEPOLIA_BOOKS_ATTESTATION_ADDRESS)
+      booksAttestation: addr(env.BASE_SEPOLIA_BOOKS_ATTESTATION_ADDRESS),
+      booksAttestationPrevious: addrList(env.BASE_SEPOLIA_BOOKS_ATTESTATION_PREVIOUS)
     },
     {
       // A local Anvil devnet used for automated end-to-end tests of the real ingestion pipeline.
@@ -215,7 +223,8 @@ export function loadNetworks(env: Env = process.env): NetworkConfig[] {
       nativeSymbol: "ETH",
       assets: [...asset("asset_local_usdc", "USDC", "USD Coin (local)", 6, addr(env.LOCAL_USDC_ADDRESS))],
       paymentIntent: intent(env, "LOCAL"),
-      booksAttestation: addr(env.LOCAL_BOOKS_ATTESTATION_ADDRESS)
+      booksAttestation: addr(env.LOCAL_BOOKS_ATTESTATION_ADDRESS),
+      booksAttestationPrevious: addrList(env.LOCAL_BOOKS_ATTESTATION_PREVIOUS)
     }
   ];
   return networks;

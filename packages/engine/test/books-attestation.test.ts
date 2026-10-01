@@ -3,10 +3,11 @@ import { resolve } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Address, Hex } from "viem";
 import { resetNetworks } from "../../config/src";
-import { BOOKS_ATTESTATION_ABI } from "../../contracts-client/src";
+import { BOOKS_ATTESTATION_ABI, BOOKS_V2_ABI, booksRoot, decodeStatements, decryptBooks, encodeStatements, encryptBooks } from "../../contracts-client/src";
 import { closePools, withTenant } from "../../database/src";
 import { startDevChain, type DevChain } from "../../devchain/src";
-import { booksAttestationStatus, closePeriod, readBooksAttestation, recordBooksAttestation, reopenPeriod, simulatePayment } from "../src";
+import { booksAttestationStatus, booksPublication, closePeriod, readBooksAttestation, recordBooksAttestation, reopenPeriod, simulatePayment } from "../src";
+import { decodeEventLog, type Hex as H } from "viem";
 import { workspace, type Workspace } from "../../../test/fixtures";
 
 /**
@@ -119,5 +120,33 @@ describe("books on Monad", () => {
     const republished = await tenant((c) => recordBooksAttestation(c, ws.orgId, "test", month, onchain, ws.actor));
     expect(republished.state).toBe("published");
     expect(republished.attestations.map((a) => a.version)).toEqual([2, 1]);
+  });
+
+  it("publishes the books themselves, encrypted, with public statements, and an outsider can read and check them from the chain", async () => {
+    const pub = await tenant((c) => booksPublication(c, ws.orgId, "test", month));
+    expect(pub.document.entries).toHaveLength(pub.entry_count);
+    expect(pub.statements.root).toBe(pub.root);
+    expect(Number(pub.statements.revenue)).toBeGreaterThanOrEqual(0);
+
+    const passphrase = "correct horse battery staple";
+    const encrypted = await encryptBooks(pub.document, passphrase);
+    const hash = await chain.wallet(1).writeContract({ address: contract, abi: BOOKS_V2_ABI, functionName: "publish", args: [pub.book, pub.period, pub.root, pub.entry_count, encrypted, encodeStatements(pub.statements)], account: chain.accounts[1]!, chain: null });
+    await chain.publicClient.waitForTransactionReceipt({ hash });
+
+    const onchain = await readBooksAttestation("test", hash);
+    expect(onchain.encryptedBooks).toBe(true);
+    expect(onchain.statements?.net_income).toBe(pub.statements.net_income);
+    const status = await tenant((c) => recordBooksAttestation(c, ws.orgId, "test", month, onchain, ws.actor));
+    expect(status.state).toBe("published");
+    expect(status.attestations[0]).toMatchObject({ encrypted_books: true, statements: { business: pub.business, root: pub.root } });
+
+    // An outsider: nothing but the transaction, the chain and the passphrase.
+    const receipt = await chain.publicClient.getTransactionReceipt({ hash });
+    const event = receipt.logs.map((l) => { try { return decodeEventLog({ abi: BOOKS_V2_ABI, data: l.data, topics: l.topics }); } catch { return null; } }).find((e) => e?.eventName === "BooksPublished")!;
+    const args = event.args as { encryptedBooks: H; statements: H };
+    const books = await decryptBooks(args.encryptedBooks, passphrase);
+    expect(booksRoot(books.entries, books.book, books.period)).toBe(pub.root);
+    expect(decodeStatements(args.statements)?.root).toBe(pub.root);
+    await expect(decryptBooks(args.encryptedBooks, "not the passphrase")).rejects.toThrow();
   });
 });

@@ -143,3 +143,4 @@ export function computeIntentId(chainId: number, contract: Address, terms: Inten
     ])
   );
 }
+export * from "./books";

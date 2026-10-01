@@ -16,6 +16,9 @@ contract SetraBooksAttestationTest is Test {
     event BooksAttested(
         address indexed publisher, bytes32 indexed book, uint32 indexed period, bytes32 root, uint32 entryCount, uint32 version
     );
+    event BooksPublished(
+        address indexed publisher, bytes32 indexed book, uint32 indexed period, uint32 version, bytes encryptedBooks, bytes statements
+    );
 
     function setUp() public {
         vm.warp(1_790_000_000);
@@ -104,5 +107,48 @@ contract SetraBooksAttestationTest is Test {
         vm.prank(business);
         assertEq(books.attest(BOOK, period, root, 1), 1);
         assertEq(books.latest(business, BOOK, period).root, root);
+    }
+
+    function test_publish_attestsAndCarriesTheBooks() public {
+        bytes memory encrypted = hex"5342010203040506070809";
+        bytes memory statements = bytes('{"v":1,"revenue":"1200.00"}');
+        vm.expectEmit(true, true, true, true, address(books));
+        emit BooksAttested(business, BOOK, AUGUST, ROOT, 42, 1);
+        vm.expectEmit(true, true, true, true, address(books));
+        emit BooksPublished(business, BOOK, AUGUST, 1, encrypted, statements);
+        vm.prank(business);
+        assertEq(books.publish(BOOK, AUGUST, ROOT, 42, encrypted, statements), 1);
+        assertEq(books.latest(business, BOOK, AUGUST).root, ROOT);
+    }
+
+    function test_publish_withoutPayloadsIsJustAnAttestation() public {
+        vm.recordLogs();
+        vm.prank(business);
+        books.publish(BOOK, AUGUST, ROOT, 42, "", "");
+        assertEq(vm.getRecordedLogs().length, 1, "only BooksAttested");
+        assertEq(books.latest(business, BOOK, AUGUST).version, 1);
+    }
+
+    function test_publish_sharesVersionsWithAttest() public {
+        vm.startPrank(business);
+        books.attest(BOOK, AUGUST, ROOT, 42);
+        assertEq(books.publish(BOOK, AUGUST, keccak256("v2"), 43, "", bytes("{}")), 2);
+        vm.stopPrank();
+    }
+
+    function test_revert_publish_payloadTooLarge() public {
+        bytes memory tooBig = new bytes(books.MAX_PAYLOAD() + 1);
+        vm.prank(business);
+        vm.expectRevert(abi.encodeWithSelector(SetraBooksAttestation.PayloadTooLarge.selector, tooBig.length));
+        books.publish(BOOK, AUGUST, ROOT, 1, tooBig, "");
+        vm.prank(business);
+        vm.expectRevert(abi.encodeWithSelector(SetraBooksAttestation.PayloadTooLarge.selector, tooBig.length));
+        books.publish(BOOK, AUGUST, ROOT, 1, "", tooBig);
+    }
+
+    function test_revert_publish_emptyRoot() public {
+        vm.prank(business);
+        vm.expectRevert(SetraBooksAttestation.EmptyRoot.selector);
+        books.publish(BOOK, AUGUST, bytes32(0), 1, "", bytes("{}"));
     }
 }

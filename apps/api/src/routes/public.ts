@@ -23,6 +23,14 @@ export function publicRoutes(app: FastifyInstance) {
     return hit as { id: string; organization_id: string };
   };
 
+  // Setra's books contracts, so the public verify page can tell a genuine publication from a look-alike.
+  app.get("/v1/public/books-contracts", { config: limit, schema: { tags: ["public"], summary: "Setra's books attestation contracts" } }, async () => ({
+    data: networks()
+      .enabled()
+      .filter((n) => n.booksAttestation)
+      .map((n) => ({ chain_id: n.chainId, network: n.name, address: n.booksAttestation, previous: n.booksAttestationPrevious, rpc_url: n.publicRpcUrl, explorer_url: n.explorerUrl ?? null }))
+  }));
+
   app.get("/v1/public/payment-requests/:token", { config: limit, schema: { tags: ["public"], summary: "Hosted payment page data" } }, async (request) => {
     const { token } = parse(tokenParam, request.params, "path");
     const hit = await locate(token);
