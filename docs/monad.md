@@ -70,8 +70,9 @@ end against the real contract on Anvil (`packages/engine/test/books-attestation.
 
 ## What has not been verified against real Monad yet
 
-- **SetraPaymentIntent and SetraBooksAttestation on Monad.** Not deployed yet; both deploy with one
-  command (`contracts/script/DeploySetra.s.sol`, see `contracts/deployments/README.md`). It is deployed and exercised end-to-end on Anvil
+- **SetraPaymentIntent and SetraBooksAttestation on Monad mainnet.** Both are deployed on Monad
+  testnet (2026-10-01, block 67282785; addresses in `contracts/deployments/monad-testnet.json`), not
+  on mainnet. A payment and a books attestation through them on testnet are still to be recorded here. It is deployed and exercised end-to-end on Anvil
   (pay, refund, reference-based matching, intent id parity with the contract). Deploy with
   `contracts/script/DeployPaymentIntent.s.sol` and record it with `npm run contracts:record`.
 - **Any payment on Monad mainnet.** Mainnet ingestion was verified read-only; no mainnet funds were used.

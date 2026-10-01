@@ -1,0 +1,678 @@
+{
+  "network": "monad-testnet",
+  "chainId": 10143,
+  "recordedAt": "2026-10-01T14:39:12.921Z",
+  "contracts": {
+    "SetraPaymentIntent": {
+      "address": "0x1ef2ca1b4426d7e942ead749f4c7ef5580fd9b5c",
+      "deploymentTransaction": "0x9d0b0fc0ee845d080473bc6c38edcb105bf43beb01916d07702363803a02fe0e",
+      "deploymentBlock": 67282785,
+      "deployer": "0xeb58bdc8b4919673d823fe3636cdb2b82ae63ef0",
+      "compiler": "0.8.30+commit.73712a01",
+      "abi": [
+        {
+          "type": "function",
+          "name": "cancel",
+          "inputs": [
+            {
+              "name": "terms",
+              "type": "tuple",
+              "internalType": "struct ISetraPaymentIntent.Terms",
+              "components": [
+                {
+                  "name": "merchant",
+                  "type": "address",
+                  "internalType": "address"
+                },
+                {
+                  "name": "token",
+                  "type": "address",
+                  "internalType": "address"
+                },
+                {
+                  "name": "amount",
+                  "type": "uint256",
+                  "internalType": "uint256"
+                },
+                {
+                  "name": "expiresAt",
+                  "type": "uint64",
+                  "internalType": "uint64"
+                },
+                {
+                  "name": "ref",
+                  "type": "bytes32",
+                  "internalType": "bytes32"
+                }
+              ]
+            }
+          ],
+          "outputs": [
+            {
+              "name": "intentId",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
+          ],
+          "stateMutability": "nonpayable"
+        },
+        {
+          "type": "function",
+          "name": "intentIdOf",
+          "inputs": [
+            {
+              "name": "terms",
+              "type": "tuple",
+              "internalType": "struct ISetraPaymentIntent.Terms",
+              "components": [
+                {
+                  "name": "merchant",
+                  "type": "address",
+                  "internalType": "address"
+                },
+                {
+                  "name": "token",
+                  "type": "address",
+                  "internalType": "address"
+                },
+                {
+                  "name": "amount",
+                  "type": "uint256",
+                  "internalType": "uint256"
+                },
+                {
+                  "name": "expiresAt",
+                  "type": "uint64",
+                  "internalType": "uint64"
+                },
+                {
+                  "name": "ref",
+                  "type": "bytes32",
+                  "internalType": "bytes32"
+                }
+              ]
+            }
+          ],
+          "outputs": [
+            {
+              "name": "",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "pay",
+          "inputs": [
+            {
+              "name": "terms",
+              "type": "tuple",
+              "internalType": "struct ISetraPaymentIntent.Terms",
+              "components": [
+                {
+                  "name": "merchant",
+                  "type": "address",
+                  "internalType": "address"
+                },
+                {
+                  "name": "token",
+                  "type": "address",
+                  "internalType": "address"
+                },
+                {
+                  "name": "amount",
+                  "type": "uint256",
+                  "internalType": "uint256"
+                },
+                {
+                  "name": "expiresAt",
+                  "type": "uint64",
+                  "internalType": "uint64"
+                },
+                {
+                  "name": "ref",
+                  "type": "bytes32",
+                  "internalType": "bytes32"
+                }
+              ]
+            }
+          ],
+          "outputs": [
+            {
+              "name": "intentId",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
+          ],
+          "stateMutability": "nonpayable"
+        },
+        {
+          "type": "function",
+          "name": "payWithPermit",
+          "inputs": [
+            {
+              "name": "terms",
+              "type": "tuple",
+              "internalType": "struct ISetraPaymentIntent.Terms",
+              "components": [
+                {
+                  "name": "merchant",
+                  "type": "address",
+                  "internalType": "address"
+                },
+                {
+                  "name": "token",
+                  "type": "address",
+                  "internalType": "address"
+                },
+                {
+                  "name": "amount",
+                  "type": "uint256",
+                  "internalType": "uint256"
+                },
+                {
+                  "name": "expiresAt",
+                  "type": "uint64",
+                  "internalType": "uint64"
+                },
+                {
+                  "name": "ref",
+                  "type": "bytes32",
+                  "internalType": "bytes32"
+                }
+              ]
+            },
+            {
+              "name": "deadline",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "v",
+              "type": "uint8",
+              "internalType": "uint8"
+            },
+            {
+              "name": "r",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "s",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "intentId",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
+          ],
+          "stateMutability": "nonpayable"
+        },
+        {
+          "type": "function",
+          "name": "recordOf",
+          "inputs": [
+            {
+              "name": "intentId",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "",
+              "type": "tuple",
+              "internalType": "struct ISetraPaymentIntent.Record",
+              "components": [
+                {
+                  "name": "status",
+                  "type": "uint8",
+                  "internalType": "enum ISetraPaymentIntent.Status"
+                },
+                {
+                  "name": "payer",
+                  "type": "address",
+                  "internalType": "address"
+                },
+                {
+                  "name": "paidAt",
+                  "type": "uint64",
+                  "internalType": "uint64"
+                }
+              ]
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "function",
+          "name": "refund",
+          "inputs": [
+            {
+              "name": "terms",
+              "type": "tuple",
+              "internalType": "struct ISetraPaymentIntent.Terms",
+              "components": [
+                {
+                  "name": "merchant",
+                  "type": "address",
+                  "internalType": "address"
+                },
+                {
+                  "name": "token",
+                  "type": "address",
+                  "internalType": "address"
+                },
+                {
+                  "name": "amount",
+                  "type": "uint256",
+                  "internalType": "uint256"
+                },
+                {
+                  "name": "expiresAt",
+                  "type": "uint64",
+                  "internalType": "uint64"
+                },
+                {
+                  "name": "ref",
+                  "type": "bytes32",
+                  "internalType": "bytes32"
+                }
+              ]
+            }
+          ],
+          "outputs": [
+            {
+              "name": "intentId",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
+          ],
+          "stateMutability": "nonpayable"
+        },
+        {
+          "type": "function",
+          "name": "stateOf",
+          "inputs": [
+            {
+              "name": "terms",
+              "type": "tuple",
+              "internalType": "struct ISetraPaymentIntent.Terms",
+              "components": [
+                {
+                  "name": "merchant",
+                  "type": "address",
+                  "internalType": "address"
+                },
+                {
+                  "name": "token",
+                  "type": "address",
+                  "internalType": "address"
+                },
+                {
+                  "name": "amount",
+                  "type": "uint256",
+                  "internalType": "uint256"
+                },
+                {
+                  "name": "expiresAt",
+                  "type": "uint64",
+                  "internalType": "uint64"
+                },
+                {
+                  "name": "ref",
+                  "type": "bytes32",
+                  "internalType": "bytes32"
+                }
+              ]
+            }
+          ],
+          "outputs": [
+            {
+              "name": "",
+              "type": "uint8",
+              "internalType": "enum ISetraPaymentIntent.State"
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "event",
+          "name": "PaymentIntentCancelled",
+          "inputs": [
+            {
+              "name": "intentId",
+              "type": "bytes32",
+              "indexed": true,
+              "internalType": "bytes32"
+            },
+            {
+              "name": "merchant",
+              "type": "address",
+              "indexed": true,
+              "internalType": "address"
+            },
+            {
+              "name": "ref",
+              "type": "bytes32",
+              "indexed": false,
+              "internalType": "bytes32"
+            }
+          ],
+          "anonymous": false
+        },
+        {
+          "type": "event",
+          "name": "PaymentIntentPaid",
+          "inputs": [
+            {
+              "name": "intentId",
+              "type": "bytes32",
+              "indexed": true,
+              "internalType": "bytes32"
+            },
+            {
+              "name": "merchant",
+              "type": "address",
+              "indexed": true,
+              "internalType": "address"
+            },
+            {
+              "name": "payer",
+              "type": "address",
+              "indexed": true,
+              "internalType": "address"
+            },
+            {
+              "name": "token",
+              "type": "address",
+              "indexed": false,
+              "internalType": "address"
+            },
+            {
+              "name": "amount",
+              "type": "uint256",
+              "indexed": false,
+              "internalType": "uint256"
+            },
+            {
+              "name": "ref",
+              "type": "bytes32",
+              "indexed": false,
+              "internalType": "bytes32"
+            }
+          ],
+          "anonymous": false
+        },
+        {
+          "type": "event",
+          "name": "PaymentIntentRefunded",
+          "inputs": [
+            {
+              "name": "intentId",
+              "type": "bytes32",
+              "indexed": true,
+              "internalType": "bytes32"
+            },
+            {
+              "name": "merchant",
+              "type": "address",
+              "indexed": true,
+              "internalType": "address"
+            },
+            {
+              "name": "payer",
+              "type": "address",
+              "indexed": true,
+              "internalType": "address"
+            },
+            {
+              "name": "token",
+              "type": "address",
+              "indexed": false,
+              "internalType": "address"
+            },
+            {
+              "name": "amount",
+              "type": "uint256",
+              "indexed": false,
+              "internalType": "uint256"
+            },
+            {
+              "name": "ref",
+              "type": "bytes32",
+              "indexed": false,
+              "internalType": "bytes32"
+            }
+          ],
+          "anonymous": false
+        },
+        {
+          "type": "error",
+          "name": "InexactTransfer",
+          "inputs": []
+        },
+        {
+          "type": "error",
+          "name": "IntentExpired",
+          "inputs": []
+        },
+        {
+          "type": "error",
+          "name": "InvalidMerchant",
+          "inputs": []
+        },
+        {
+          "type": "error",
+          "name": "InvalidTransition",
+          "inputs": [
+            {
+              "name": "from",
+              "type": "uint8",
+              "internalType": "enum ISetraPaymentIntent.Status"
+            },
+            {
+              "name": "to",
+              "type": "uint8",
+              "internalType": "enum ISetraPaymentIntent.Status"
+            }
+          ]
+        },
+        {
+          "type": "error",
+          "name": "NotAContract",
+          "inputs": []
+        },
+        {
+          "type": "error",
+          "name": "PayerIsMerchant",
+          "inputs": []
+        },
+        {
+          "type": "error",
+          "name": "Reentrancy",
+          "inputs": []
+        },
+        {
+          "type": "error",
+          "name": "TokenCallFailed",
+          "inputs": []
+        },
+        {
+          "type": "error",
+          "name": "Unauthorized",
+          "inputs": []
+        },
+        {
+          "type": "error",
+          "name": "ZeroAddress",
+          "inputs": []
+        },
+        {
+          "type": "error",
+          "name": "ZeroAmount",
+          "inputs": []
+        }
+      ]
+    },
+    "SetraBooksAttestation": {
+      "address": "0xbc89b80f680046e23e53b2650ca574e96fb5c9ca",
+      "deploymentTransaction": "0x5a991087e6ea5370c634625ac7f2c2998ad368fae12a3108f531a5eedcf101d2",
+      "deploymentBlock": 67282789,
+      "deployer": "0xeb58bdc8b4919673d823fe3636cdb2b82ae63ef0",
+      "compiler": "0.8.30+commit.73712a01",
+      "abi": [
+        {
+          "type": "function",
+          "name": "attest",
+          "inputs": [
+            {
+              "name": "book",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "period",
+              "type": "uint32",
+              "internalType": "uint32"
+            },
+            {
+              "name": "root",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "entryCount",
+              "type": "uint32",
+              "internalType": "uint32"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "version",
+              "type": "uint32",
+              "internalType": "uint32"
+            }
+          ],
+          "stateMutability": "nonpayable"
+        },
+        {
+          "type": "function",
+          "name": "latest",
+          "inputs": [
+            {
+              "name": "publisher",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "book",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "period",
+              "type": "uint32",
+              "internalType": "uint32"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "",
+              "type": "tuple",
+              "internalType": "struct SetraBooksAttestation.Attestation",
+              "components": [
+                {
+                  "name": "root",
+                  "type": "bytes32",
+                  "internalType": "bytes32"
+                },
+                {
+                  "name": "entryCount",
+                  "type": "uint32",
+                  "internalType": "uint32"
+                },
+                {
+                  "name": "version",
+                  "type": "uint32",
+                  "internalType": "uint32"
+                },
+                {
+                  "name": "publishedAt",
+                  "type": "uint64",
+                  "internalType": "uint64"
+                }
+              ]
+            }
+          ],
+          "stateMutability": "view"
+        },
+        {
+          "type": "event",
+          "name": "BooksAttested",
+          "inputs": [
+            {
+              "name": "publisher",
+              "type": "address",
+              "indexed": true,
+              "internalType": "address"
+            },
+            {
+              "name": "book",
+              "type": "bytes32",
+              "indexed": true,
+              "internalType": "bytes32"
+            },
+            {
+              "name": "period",
+              "type": "uint32",
+              "indexed": true,
+              "internalType": "uint32"
+            },
+            {
+              "name": "root",
+              "type": "bytes32",
+              "indexed": false,
+              "internalType": "bytes32"
+            },
+            {
+              "name": "entryCount",
+              "type": "uint32",
+              "indexed": false,
+              "internalType": "uint32"
+            },
+            {
+              "name": "version",
+              "type": "uint32",
+              "indexed": false,
+              "internalType": "uint32"
+            }
+          ],
+          "anonymous": false
+        },
+        {
+          "type": "error",
+          "name": "EmptyRoot",
+          "inputs": []
+        },
+        {
+          "type": "error",
+          "name": "InvalidPeriod",
+          "inputs": [
+            {
+              "name": "period",
+              "type": "uint32",
+              "internalType": "uint32"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
