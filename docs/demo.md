@@ -52,7 +52,7 @@ labelled "Simulated" went through the same pipeline as chain payments; say so if
 - **What about unknown or wrong payments?** Partial, overpaid, duplicate, late, wrong-token and unknown
   payments go to review with evidence; the ledger holds unidentified money separately until someone decides.
 - **What's live?** Real Monad testnet payments (see `docs/status.md`). Mainnet ingestion was verified
-  read-only; the payment-intent contract is tested (32 tests) and not yet deployed.
+  read-only; the payment-intent contract is tested (32 tests) and deployed on testnet only.
 - **Business model?** A subscription per workspace, see the pricing page.
 
 ## Recording the backup

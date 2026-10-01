@@ -40,12 +40,13 @@ test("signup → workspace → wallet → customer → invoice → Monad payment
   await expect(customer.getByRole("heading", { name: "September Infrastructure Services" })).toBeVisible(); // purpose before paying
   await expect(customer.getByText("$2,000")).toBeVisible();
   await expect(customer.getByText("Monad Testnet").first()).toBeVisible();
-  await customer.getByRole("button", { name: /simulate instead/ }).click();
+  await customer.getByRole("button", { name: /Simulate a test payment/ }).click();
   await expect(customer.getByRole("heading", { name: "Payment received" })).toBeVisible();
 
   // The merchant sees the invoice paid.
   await page.getByRole("button", { name: "Watch for the payment" }).click();
   await expect(page.locator(".status-line").getByText("Paid")).toBeVisible();
+  await expect(page.getByRole("main")).toHaveCount(1); // one main landmark in the console shell
 
   // Payment detail: business meaning, evidence, and why it matched.
   await page.locator("table tbody tr").first().click();
@@ -133,4 +134,68 @@ test("unknown payment → assign with reason → invoice paid", async ({ page })
   await page.getByRole("button", { name: "Assign payment" }).click();
   await expect(page.getByRole("heading", { name: "Resolution" })).toBeVisible();
   await expect(page.getByText("Deposit agreed by phone")).toBeVisible();
+});
+
+test("setup picks up after a reload with the wallet already added", async ({ page }) => {
+  await signup(page);
+  await page.getByLabel("Business name").fill("Reload Ltd");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("radio", { name: /Collect a payment/ }).check();
+  const wallet = address();
+  await page.getByLabel("Public wallet address").fill(wallet);
+  await page.getByRole("button", { name: "Start monitoring" }).click();
+  await expect(page.getByRole("heading", { name: "Who’s paying you?" })).toBeVisible();
+
+  // Reloading goes back to the wallet step; entering the same wallet continues instead of failing.
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "How would you like to start?" })).toBeVisible();
+  await page.getByRole("radio", { name: /Collect a payment/ }).check();
+  await page.getByLabel("Public wallet address").fill(wallet);
+  await page.getByRole("button", { name: "Start monitoring" }).click();
+  await expect(page.getByRole("heading", { name: "Who’s paying you?" })).toBeVisible();
+  const wallets = await (await page.request.get("/api/v1/wallets")).json();
+  expect(wallets.data).toHaveLength(1);
+});
+
+test("payment links and one-time secrets fit a phone screen", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  /** No sideways scrolling, and the copy button is on screen rather than clipped off the edge. */
+  const fits = async (copy: string) => {
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+    const box = await page.getByRole("button", { name: copy }).first().boundingBox();
+    expect(box && box.x + box.width).toBeLessThanOrEqual(375);
+  };
+  await signup(page);
+  await page.getByLabel("Business name").fill("Small Screen Co");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByRole("radio", { name: /Collect a payment/ }).check();
+  await page.getByLabel("Public wallet address").fill(address());
+  await page.getByRole("button", { name: "Start monitoring" }).click();
+  await page.getByLabel("Customer name").fill("Nova Systems");
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByLabel("Amount").fill("250.00");
+  await page.getByLabel("What is this payment for?").fill("Website development");
+  await page.getByRole("button", { name: "Create payment request" }).click();
+  await expect(page.getByRole("heading", { name: /is ready to pay/ })).toBeVisible();
+  await fits("Copy payment link");
+
+  // The payer's manual-send details on a phone.
+  const payer = await page.context().newPage();
+  await payer.setViewportSize({ width: 375, height: 812 });
+  await payer.goto(new URL(await page.getByText(/\/pay\//).first().innerText()).pathname);
+  await payer.getByRole("tab", { name: /Send manually/ }).click();
+  await expect(payer.getByRole("button", { name: "Copy 2. to this address" })).toBeVisible();
+  expect(await payer.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
+  await payer.close();
+
+  await page.getByRole("button", { name: "Watch for the payment" }).click();
+  await expect(page.getByRole("heading", { name: "Payment link" })).toBeVisible();
+  await fits("Copy payment link");
+
+  await page.goto("/app/developers/api-keys");
+  await page.getByRole("button", { name: "Create key" }).first().click();
+  await page.getByRole("dialog").getByLabel("Name").fill("Checkout service");
+  await page.getByRole("dialog").getByRole("button", { name: "Create key" }).click();
+  await expect(page.getByRole("button", { name: "Copy API key" })).toBeVisible();
+  await fits("Copy API key");
 });

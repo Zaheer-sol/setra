@@ -52,8 +52,9 @@
    block 66,179,640) was paid from the hosted payment page, observed at the tip, finalized ~2.5 s later,
    matched to INV-2061 and delivered as a signed `payment.matched` webhook. A second real transfer two
    seconds later was flagged as a possible duplicate and not applied. No mainnet payment has been made.
-2. **SetraPaymentIntent is not deployed to Monad.** Without a configured address, the hosted page uses
-   direct transfers (fully supported). The contract has not been audited.
+2. **SetraPaymentIntent is deployed on Monad testnet only** (`0x1eF2…9B5c`, see
+   `contracts/deployments/monad-testnet.json`), not on mainnet. Without a configured address, the hosted page
+   uses direct transfers (fully supported). The contract has not been audited.
 3. Rate limiting is in-memory: correct for one API instance; multiple instances need a shared store.
 4. Email (password reset, invitations) needs `SMTP_URL`. Without it, development logs the link and
    production sends nothing; invitation links are also shown once in the console.

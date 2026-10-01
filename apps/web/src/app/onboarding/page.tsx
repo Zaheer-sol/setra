@@ -136,7 +136,10 @@ function Onboarding() {
                 onSubmit={(e) => {
                   e.preventDefault();
                   run(async () => {
-                    await api("/v1/wallets", { method: "POST", idempotencyKey: keys.wallet, body: { name: wallet.name, network: "monad", address: wallet.address.trim(), assets: ["USDC"] } });
+                    // Coming back to setup (reload, back button) with a wallet already added: carry on with it.
+                    await api("/v1/wallets", { method: "POST", idempotencyKey: keys.wallet, body: { name: wallet.name, network: "monad", address: wallet.address.trim(), assets: ["USDC"] } }).catch((e) => {
+                      if ((e as ApiError).code !== "wallet_exists") throw e;
+                    });
                     if (setup === "books") await finishBooks();
                     else setStep(2);
                   });
@@ -271,8 +274,8 @@ function Onboarding() {
                     Send this link to your customer. When they pay, Setra detects the payment on Monad, verifies it, matches it to {created.number} and marks it paid.
                   </p>
                 </div>
-                <div className="flex items-center gap-1.5 rounded-xl bg-muted px-3.5 py-3">
-                  <span className="flex-1 truncate font-mono text-[13px]">{created.payment_url}</span>
+                <div className="flex min-w-0 items-center gap-1.5 rounded-xl bg-muted px-3.5 py-3">
+                  <span className="min-w-0 flex-1 truncate font-mono text-[13px]">{created.payment_url}</span>
                   <CopyButton value={created.payment_url} label="Copy payment link" />
                 </div>
                 <div className="flex flex-wrap items-center gap-2">

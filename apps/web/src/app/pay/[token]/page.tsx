@@ -563,7 +563,7 @@ function ManualInstructions({ view }: { view: PublicView }) {
 function Copyable({ label, value, copyValue, mono }: { label: string; value: string; copyValue?: string; mono?: boolean }) {
   const [done, setDone] = useState(false);
   return (
-    <div>
+    <div className="min-w-0">
       <div className={fieldLabelCls}>{label}</div>
       <button
         type="button"
@@ -575,7 +575,7 @@ function Copyable({ label, value, copyValue, mono }: { label: string; value: str
         }}
         aria-label={`Copy ${label.toLowerCase()}`}
       >
-        <span className="flex-1 truncate text-left">{value}</span>
+        <span className="min-w-0 flex-1 truncate text-left">{value}</span>
         {done ? <CheckCircle2 className="size-3.5 text-success" aria-hidden="true" /> : <span className="font-sans text-[11px] text-muted-foreground">Copy</span>}
       </button>
     </div>

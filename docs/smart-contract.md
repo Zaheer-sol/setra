@@ -82,4 +82,5 @@ End-to-end with Setra's ingestion on a real EVM node: `packages/engine/test/chai
 ## Deployment
 
 See `docs/deployment.md#smart-contract`. Deployment records live in `contracts/deployments/<network>.json`
-and are written only from real Foundry broadcasts. Status: **not yet deployed to Monad.**
+and are written only from real Foundry broadcasts. Status: **deployed on Monad testnet** (`0x1eF2…9B5c`, recorded in
+`contracts/deployments/monad-testnet.json`); not deployed on mainnet, and not audited.

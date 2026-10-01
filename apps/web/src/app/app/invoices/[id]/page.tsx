@@ -236,9 +236,9 @@ export default function InvoiceDetailPage() {
         <Stack>
           <Card title="Payment link" description="Send this to your customer. It shows only what they need to pay.">
             <CardBody className="grid gap-3">
-              <div className="flex items-center gap-1.5 rounded-[10px] bg-muted py-1.5 pr-2 pl-3">
+              <div className="flex min-w-0 items-center gap-1.5 rounded-[10px] bg-muted py-1.5 pr-2 pl-3">
                 <Link2 className="size-3.5 text-muted-foreground" aria-hidden="true" />
-                <span className="flex-1 truncate font-mono text-xs">{inv.payment_url}</span>
+                <span className="min-w-0 flex-1 truncate font-mono text-xs">{inv.payment_url}</span>
                 <CopyButton value={inv.payment_url} label="Copy payment link" />
               </div>
               {isTest && open && can("simulate") && (

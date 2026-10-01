@@ -304,8 +304,8 @@ export function Alert({ tone = "info", title, children, actions, className }: { 
       <Icon aria-hidden="true" />
       {title && <AlertTitle className="line-clamp-none font-semibold">{title}</AlertTitle>}
       {(children || actions) && (
-        <AlertDescription className="text-foreground/80">
-          {children && <div>{children}</div>}
+        <AlertDescription className="min-w-0 text-foreground/80">
+          {children && <div className="w-full min-w-0">{children}</div>}
           {actions && <div className="mt-2 flex flex-wrap gap-2">{actions}</div>}
         </AlertDescription>
       )}

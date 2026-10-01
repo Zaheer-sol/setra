@@ -418,7 +418,7 @@ function BlockView({ block: b, onChoose, onDecide, resolved, busy }: { block: Bl
           </Amount>
           <Rows rows={[["For", i.customer], ["Network", i.network], ["Due", i.due_at ? dateShort(i.due_at) : "No due date"]]} />
           <div className="flex min-w-0 items-center gap-1.5 rounded-[10px] bg-muted py-1.5 pr-2 pl-3 text-xs">
-            <span className="flex-1 truncate font-mono">{i.payment_url}</span>
+            <span className="min-w-0 flex-1 truncate font-mono">{i.payment_url}</span>
             <CopyButton value={i.payment_url} label="Copy payment link" />
             <a className="inline-grid size-6 place-items-center rounded-md text-muted-foreground hover:bg-accent hover:text-primary" href={i.payment_url} target="_blank" rel="noreferrer" aria-label="Open payment page">
               <ExternalLink className="size-3.5" aria-hidden="true" />

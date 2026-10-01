@@ -16,8 +16,8 @@ no real money moves.
 - Setra is a hackathon-stage product. It is non-custodial: it only reads public wallet addresses, and
   funds never pass through it.
 - The pilot runs on Monad testnet: payments use testnet USDC, which has no value. Nothing real is at risk.
-- The payment-intent smart contract is not deployed or audited; payments use direct USDC transfers,
-  which is fully supported.
+- The payment-intent smart contract is deployed on Monad testnet only and is not audited; without it
+  configured, payments use direct USDC transfers, which is fully supported.
 - Their data stays in the pilot workspace; they can ask for it to be deleted.
 
 ## Message you can send
