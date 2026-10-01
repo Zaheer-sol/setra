@@ -1,7 +1,7 @@
 {
   "network": "monad-testnet",
   "chainId": 10143,
-  "recordedAt": "2026-10-01T14:39:12.921Z",
+  "recordedAt": "2026-10-01T17:47:41.101Z",
   "contracts": {
     "SetraPaymentIntent": {
       "address": "0x1ef2ca1b4426d7e942ead749f4c7ef5580fd9b5c",
@@ -522,12 +522,25 @@
       ]
     },
     "SetraBooksAttestation": {
-      "address": "0xbc89b80f680046e23e53b2650ca574e96fb5c9ca",
-      "deploymentTransaction": "0x5a991087e6ea5370c634625ac7f2c2998ad368fae12a3108f531a5eedcf101d2",
-      "deploymentBlock": 67282789,
+      "address": "0xd4b87ce59e2dcf5f597ea0edf7dec17c21d78a73",
+      "deploymentTransaction": "0x17c046200ad1f29bcfc25d9a0d294242f413fa46c1655101da87792eff394492",
+      "deploymentBlock": 67320290,
       "deployer": "0xeb58bdc8b4919673d823fe3636cdb2b82ae63ef0",
       "compiler": "0.8.30+commit.73712a01",
       "abi": [
+        {
+          "type": "function",
+          "name": "MAX_PAYLOAD",
+          "inputs": [],
+          "outputs": [
+            {
+              "name": "",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
+          ],
+          "stateMutability": "view"
+        },
         {
           "type": "function",
           "name": "attest",
@@ -614,6 +627,50 @@
           "stateMutability": "view"
         },
         {
+          "type": "function",
+          "name": "publish",
+          "inputs": [
+            {
+              "name": "book",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "period",
+              "type": "uint32",
+              "internalType": "uint32"
+            },
+            {
+              "name": "root",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "entryCount",
+              "type": "uint32",
+              "internalType": "uint32"
+            },
+            {
+              "name": "encryptedBooks",
+              "type": "bytes",
+              "internalType": "bytes"
+            },
+            {
+              "name": "statements",
+              "type": "bytes",
+              "internalType": "bytes"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "version",
+              "type": "uint32",
+              "internalType": "uint32"
+            }
+          ],
+          "stateMutability": "nonpayable"
+        },
+        {
           "type": "event",
           "name": "BooksAttested",
           "inputs": [
@@ -657,6 +714,49 @@
           "anonymous": false
         },
         {
+          "type": "event",
+          "name": "BooksPublished",
+          "inputs": [
+            {
+              "name": "publisher",
+              "type": "address",
+              "indexed": true,
+              "internalType": "address"
+            },
+            {
+              "name": "book",
+              "type": "bytes32",
+              "indexed": true,
+              "internalType": "bytes32"
+            },
+            {
+              "name": "period",
+              "type": "uint32",
+              "indexed": true,
+              "internalType": "uint32"
+            },
+            {
+              "name": "version",
+              "type": "uint32",
+              "indexed": false,
+              "internalType": "uint32"
+            },
+            {
+              "name": "encryptedBooks",
+              "type": "bytes",
+              "indexed": false,
+              "internalType": "bytes"
+            },
+            {
+              "name": "statements",
+              "type": "bytes",
+              "indexed": false,
+              "internalType": "bytes"
+            }
+          ],
+          "anonymous": false
+        },
+        {
           "type": "error",
           "name": "EmptyRoot",
           "inputs": []
@@ -671,8 +771,30 @@
               "internalType": "uint32"
             }
           ]
+        },
+        {
+          "type": "error",
+          "name": "PayloadTooLarge",
+          "inputs": [
+            {
+              "name": "length",
+              "type": "uint256",
+              "internalType": "uint256"
+            }
+          ]
         }
       ]
     }
-  }
+  },
+  "history": [
+    {
+      "contract": "SetraBooksAttestation",
+      "address": "0xbc89b80f680046e23e53b2650ca574e96fb5c9ca",
+      "deploymentTransaction": "0x5a991087e6ea5370c634625ac7f2c2998ad368fae12a3108f531a5eedcf101d2",
+      "deploymentBlock": 67282789,
+      "deployer": "0xeb58bdc8b4919673d823fe3636cdb2b82ae63ef0",
+      "compiler": "0.8.30+commit.73712a01",
+      "replacedAt": "2026-10-01T17:47:41.097Z"
+    }
+  ]
 }
