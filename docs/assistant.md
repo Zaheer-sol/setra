@@ -69,7 +69,7 @@ Any OpenAI-compatible chat completions API works, set on the API service:
 |---|---|---|
 | `LLM_API_KEY` | (none: model off) | The provider's API key |
 | `LLM_BASE_URL` | `https://api.groq.com/openai/v1` | Groq's free tier by default |
-| `LLM_MODEL` | `llama-3.3-70b-versatile` | |
+| `LLM_MODEL` | `openai/gpt-oss-120b` | |
 
 ## Notifications
 

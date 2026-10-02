@@ -14,7 +14,7 @@ import { clean, normalizeAmount, parseIntent, type Intent } from "./intent-parse
  */
 
 const BASE_URL = () => (process.env.LLM_BASE_URL || "https://api.groq.com/openai/v1").replace(/\/$/, "");
-const MODEL = () => process.env.LLM_MODEL || "llama-3.3-70b-versatile";
+const MODEL = () => process.env.LLM_MODEL || "openai/gpt-oss-120b";
 const TIMEOUT_MS = 6000;
 
 export const languageModelEnabled = () => !!process.env.LLM_API_KEY;
@@ -121,6 +121,16 @@ function normalized(message: string, raw: z.infer<typeof intentSchema>): Intent 
   }
 }
 
+// A provider that keeps refusing (a removed model, a revoked key) would otherwise look like a model that
+// never understands anything. Say so once per status, with the provider's error code but never the key.
+const warned = new Set<number>();
+function warnOnce(status: number, body: string) {
+  if (warned.has(status)) return;
+  warned.add(status);
+  const code = body.match(/"code"\s*:\s*"([^"]+)"/)?.[1] ?? "";
+  console.warn(`Seti language model: ${BASE_URL()} answered ${status}${code ? ` (${code})` : ""} for model ${MODEL()}. Seti is using its rules only.`);
+}
+
 /** Ask the model for an intent. Any failure (no key, timeout, provider error, bad JSON) is "unknown". */
 export async function modelIntent(message: string, fetchImpl: typeof fetch = fetch): Promise<Intent> {
   const key = process.env.LLM_API_KEY;
@@ -132,7 +142,10 @@ export async function modelIntent(message: string, fetchImpl: typeof fetch = fet
       body: JSON.stringify({ model: MODEL(), temperature: 0, max_tokens: 200, response_format: { type: "json_object" }, messages: [{ role: "system", content: SYSTEM }, { role: "user", content: message.slice(0, 2000) }] }),
       signal: AbortSignal.timeout(TIMEOUT_MS)
     });
-    if (!res.ok) return { kind: "unknown" };
+    if (!res.ok) {
+      warnOnce(res.status, await res.text().catch(() => ""));
+      return { kind: "unknown" };
+    }
     const body = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
     const parsed = intentSchema.safeParse(JSON.parse(body.choices?.[0]?.message?.content ?? "{}"));
     return parsed.success ? normalized(message, parsed.data) : { kind: "unknown" };

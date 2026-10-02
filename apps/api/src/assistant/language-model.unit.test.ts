@@ -46,6 +46,17 @@ describe("Seti's language model", () => {
     expect(await modelIntent("x", throwing)).toEqual({ kind: "unknown" });
   });
 
+  it("says once, without the key, when the provider keeps refusing", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const gone = vi.fn(async () => new Response(JSON.stringify({ error: { code: "model_not_found" } }), { status: 404 })) as unknown as typeof fetch;
+    expect(await modelIntent("x", gone)).toEqual({ kind: "unknown" });
+    expect(await modelIntent("y", gone)).toEqual({ kind: "unknown" });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(String(warn.mock.calls[0]![0])).toContain("404 (model_not_found)");
+    expect(String(warn.mock.calls[0]![0])).not.toContain("test-key");
+    warn.mockRestore();
+  });
+
   it("can't be talked into an action the message doesn't support", async () => {
     // Whatever the message says, the model can only answer with one of Seti's intents, and record-
     // creating intents still go through confirmation.
