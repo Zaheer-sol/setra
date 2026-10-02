@@ -7,6 +7,7 @@ import type { Permission } from "../lib/principal";
 import type { Block, InvoiceCard, Link, PaymentCard, Row } from "./blocks";
 import { applyFinancialAction, financial } from "./financial-intents";
 import { understand } from "./language-model";
+import { pick, speak } from "./voice";
 import { clean, findAmount, normalizeAmount, parseIntent, periodStart, resolveDue, titleCase, type Intent, type Period } from "./intent-parser";
 
 /**
@@ -206,7 +207,7 @@ function paymentNote(p: Any): string | undefined {
 }
 
 const HELP: Block[] = [
-  { type: "text", text: "I'm Seti. I can answer questions about your payments and your books, and prepare payment requests, bills and expenses for you to confirm. For example:" },
+  { type: "text", text: "Hi, I'm Seti. Ask me about your payments, invoices and books, or tell me who to bill and I'll set it up for you to confirm. A few ideas:" },
   {
     type: "choice",
     prompt: "Try",
@@ -222,6 +223,23 @@ const HELP: Block[] = [
     ]
   }
 ];
+
+// When a message isn't understood: short, a little varied, and four things worth trying.
+const UNKNOWN = [
+  "Sorry, I didn't catch that. I can help with payments, invoices and your books. Try one of these:",
+  "Hmm, I didn't catch that one. Ask me about payments, invoices or your books, like:",
+  "I didn't catch that, sorry. Here are a few things I can do:"
+];
+const SUGGEST: Block = {
+  type: "choice",
+  prompt: "Try",
+  options: [
+    { label: "What's outstanding?", value: "@text" },
+    { label: "How much cash do we have?", value: "@text" },
+    { label: "Anything that needs review?", value: "@text" },
+    { label: "Create a $250 USDC payment request for Acme Ltd for website development", value: "@text" }
+  ]
+};
 
 // ── customers ─────────────────────────────────────────────────────────────────────────────────
 
@@ -239,14 +257,14 @@ async function resolveCustomer(ctx: AssistantContext, name: string): Promise<Res
 }
 
 function customerChoice(name: string, options: Array<{ id: string; name: string; detail?: string }>): Block {
-  return { type: "choice", prompt: `I found ${options.length} customers matching “${name}”. Which one?`, options: options.map((o) => ({ label: o.name, detail: o.detail, value: o.id })) };
+  return { type: "choice", prompt: `I found ${options.length} customers matching “${name}”. Which one do you mean?`, options: options.map((o) => ({ label: o.name, detail: o.detail, value: o.id })) };
 }
 
 // ── entry point ───────────────────────────────────────────────────────────────────────────────
 
 export async function respond(ctx: AssistantContext, text: string, choice?: string): Promise<Reply> {
   try {
-    return await respondInner(ctx, text, choice);
+    return speak(await respondInner(ctx, text, choice), text);
   } catch (error) {
     if (error instanceof ApiCallError) return { intent: "error", pending: ctx.pending, blocks: [friendly(error)] };
     throw error;
@@ -255,7 +273,7 @@ export async function respond(ctx: AssistantContext, text: string, choice?: stri
 
 async function respondInner(ctx: AssistantContext, text: string, choice?: string): Promise<Reply> {
   const pending = ctx.pending && new Date(ctx.pending.expiresAt) > ctx.now ? ctx.pending : null;
-  if (pending && /^\s*(cancel|never ?mind|stop|forget it|no thanks)\b/i.test(text)) return { intent: "cancel", pending: null, blocks: [{ type: "text", text: "Cancelled. Nothing was created." }] };
+  if (pending && /^\s*(cancel|never ?mind|stop|forget it|no thanks)\b/i.test(text)) return { intent: "cancel", pending: null, blocks: [{ type: "text", text: "Cancelled. I didn't create anything." }] };
 
   if (pending) {
     const continued = await continuePending(ctx, pending, text, choice);
@@ -301,7 +319,7 @@ async function respondInner(ctx: AssistantContext, text: string, choice?: string
     case "close_period":
       return financial(ctx, intent);
     default:
-      return { intent: "unknown", pending: null, blocks: [{ type: "text", text: "I didn't understand that. I can answer questions about payments, invoices and your books, and prepare payment requests, bills and expenses." }, ...HELP.slice(1)] };
+      return { intent: "unknown", pending: null, blocks: [{ type: "text", text: pick(text.toLowerCase(), UNKNOWN) }, SUGGEST] };
   }
 }
 
@@ -335,27 +353,27 @@ async function continuePending(ctx: AssistantContext, pending: Pending, text: st
   switch (pending.missing) {
     case "amount": {
       const found = findAmount(text) ?? bareAmount(text);
-      if (!found) return { intent: "create_request", pending, blocks: [{ type: "text", text: "How much should the payment request be for? For example: 250 USDC." }] };
+      if (!found) return { intent: "create_request", pending, blocks: [{ type: "text", text: "How much is it for? You can say something like 250 USDC." }] };
       draft.amount = found.amount;
       draft.asset = draft.asset ?? found.asset;
       break;
     }
     case "purpose": {
       const purpose = clean(text);
-      if (!purpose) return { intent: "create_request", pending, blocks: [{ type: "text", text: "What is this payment for?" }] };
+      if (!purpose) return { intent: "create_request", pending, blocks: [{ type: "text", text: "What's it for? Your customer sees this before they pay." }] };
       draft.purpose = titleCase(purpose);
       break;
     }
     case "customer": {
       const name = clean(choice && choice !== "@text" ? choice : text, 80);
-      if (!name) return { intent: "create_request", pending, blocks: [{ type: "text", text: "Who is this payment request for?" }] };
+      if (!name) return { intent: "create_request", pending, blocks: [{ type: "text", text: "Who should I bill?" }] };
       draft.customerName = name;
       draft.customerId = undefined;
       break;
     }
     case "asset": {
       const asset = /usdt/i.test(choice ?? text) ? "USDT0" : /usdc/i.test(choice ?? text) ? "USDC" : null;
-      if (!asset) return { intent: "create_request", pending, blocks: [{ type: "text", text: "Which stablecoin should the customer pay in?" }] };
+      if (!asset) return { intent: "create_request", pending, blocks: [{ type: "text", text: "Which stablecoin should they pay in?" }] };
       draft.asset = asset;
       break;
     }
@@ -407,7 +425,7 @@ async function createFlow(ctx: AssistantContext, input: Draft): Promise<Reply> {
   }
 
   if (!draft.customerId && !draft.newCustomer) {
-    if (!draft.customerName) return ask(ctx, draft, "customer", "Who is this payment request for?");
+    if (!draft.customerName) return ask(ctx, draft, "customer", "Who should I bill?");
     const r = await resolveCustomer(ctx, draft.customerName);
     if (r.status === "many") {
       return { intent: "create_request", pending: { awaiting: "customer_choice", name: draft.customerName, options: r.options, next: { kind: "create", draft }, expiresAt: expires(ctx.now) }, blocks: [customerChoice(draft.customerName, r.options)] };
@@ -421,8 +439,8 @@ async function createFlow(ctx: AssistantContext, input: Draft): Promise<Reply> {
       return { intent: "create_request", pending: null, blocks: [{ type: "notice", tone: "warning", title: `No customer called “${draft.customerName}”.`, text: "Your role can't add customers. Ask an admin to add them first." }] };
     }
   }
-  if (!draft.amount) return ask(ctx, draft, "amount", `How much should ${draft.customerName ?? draft.newCustomer} pay?`);
-  if (!draft.purpose) return ask(ctx, draft, "purpose", "What is this payment for?");
+  if (!draft.amount) return ask(ctx, draft, "amount", `Sure. How much should I bill ${draft.customerName ?? draft.newCustomer}?`);
+  if (!draft.purpose) return ask(ctx, draft, "purpose", "What's it for? Your customer sees this before they pay.");
 
   // Asset and network: only safe defaults. Monad is the network; the asset must be one a wallet accepts.
   const wallets = (await api<{ data: Any[] }>(ctx, "GET", "/v1/wallets")).data.filter((w) => w.network === "monad");
@@ -440,7 +458,7 @@ async function createFlow(ctx: AssistantContext, input: Draft): Promise<Reply> {
       return {
         intent: "create_request",
         pending: { awaiting: "create", missing: "asset", draft, expiresAt: expires(ctx.now) },
-        blocks: [{ type: "choice", prompt: "Which stablecoin should the customer pay in?", options: accepted.map((a) => ({ label: a, value: a })) }]
+        blocks: [{ type: "choice", prompt: "Which stablecoin should they pay in?", options: accepted.map((a) => ({ label: a, value: a })) }]
       };
   }
 
@@ -508,7 +526,7 @@ export async function resolveAction(ctx: AssistantContext, actionId: string, dec
   }
   if (decision === "cancel") {
     await withTenant(ctx.organizationId, (c) => c.query("UPDATE assistant_actions SET status = 'cancelled', resolved_at = now() WHERE id = $1 AND status = 'pending'", [actionId]));
-    return [{ type: "text", text: "Cancelled. Nothing was created." }];
+    return [{ type: "text", text: "Cancelled. I didn't create anything." }];
   }
   // Claim it: only one confirmation proceeds.
   const claimed = await withTenant(ctx.organizationId, (c) => c.query("UPDATE assistant_actions SET status = 'confirmed', resolved_at = now() WHERE id = $1 AND status = 'pending' RETURNING id", [actionId]));
@@ -540,7 +558,7 @@ async function createPaymentRequest(ctx: AssistantContext, action: Any): Promise
   const invoice = await api(ctx, "POST", "/v1/invoices", { customer_id: customerId, title: p.title, amount: p.amount, asset: p.asset, network: p.network, due_at: p.due_at ?? undefined }, action.id);
   return [
     { type: "payment_request", invoice: invoiceCard(invoice), testMode: ctx.environment === "test" },
-    { type: "text", text: `Share the payment link with ${invoice.customer?.name ?? "your customer"}. I'll let you know when the payment arrives.` }
+    { type: "text", text: `Done. Send ${invoice.customer?.name ?? "your customer"} the link and I'll let you know as soon as they pay.` }
   ];
 }
 
@@ -561,10 +579,10 @@ async function paymentStatus(ctx: AssistantContext, intent: Extract<Intent, { ki
     const latestPayment = inv.payments?.[0] ? await api(ctx, "GET", `/v1/payments/${inv.payments[0].id}`) : null;
     const blocks: Block[] = [{ type: "invoices", title: `${inv.number}: ${inv.status.replace("_", " ")}`, items: [invoiceCard(inv)], empty: "" }];
     if (latestPayment) blocks.push({ type: "payment", ...paymentTitle(latestPayment), payment: paymentCard(latestPayment), note: paymentNote(latestPayment) });
-    else blocks.push({ type: "text", text: `No payment has arrived for ${inv.number} yet.` });
+    else blocks.push({ type: "text", text: `I'll let you know as soon as a payment comes in for ${inv.number}.` });
     return { intent: "payment_status", pending: null, blocks };
   }
-  if (!intent.customer) return { intent: "payment_status", pending: null, blocks: [{ type: "text", text: "Whose payment should I check? For example: “Did Acme Ltd pay?”" }] };
+  if (!intent.customer) return { intent: "payment_status", pending: null, blocks: [{ type: "text", text: "Whose payment should I check? You can ask something like “Did Acme Ltd pay?”" }] };
   return withCustomer(ctx, intent.customer, { kind: "status" }, (id, name) => statusForCustomer(ctx, id, name));
 }
 
@@ -582,7 +600,7 @@ async function statusForCustomer(ctx: AssistantContext, customerId: string, name
     blocks.push({ type: "notice", tone: "info", title: `No payments from ${name} yet.` });
   }
   if (open.data.length) blocks.push({ type: "invoices", title: `Still open for ${name}`, items: open.data.map(invoiceCard), empty: "", link: { label: "View customer", href: `/app/customers/${customerId}` } });
-  else if (last) blocks.push({ type: "text", text: `${name} has no open payment requests.` });
+  else if (last) blocks.push({ type: "text", text: `Nothing else is open for ${name}.` });
   return { intent: "payment_status", pending: null, blocks };
 }
 
