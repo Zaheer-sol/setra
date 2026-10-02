@@ -1,13 +1,21 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { MotionProvider } from "@/components/motion";
 import { ThemeProvider } from "@/components/theme";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
-const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono-face", display: "swap", weight: ["400", "500"] });
+// Fonts ship with the app (Latin subsets, SIL Open Font License) so builds never depend on reaching Google Fonts.
+const inter = localFont({ src: "../fonts/inter-latin-variable.woff2", weight: "100 900", variable: "--font-inter", display: "swap" });
+const mono = localFont({
+  src: [
+    { path: "../fonts/jetbrains-mono-latin-400.woff2", weight: "400" },
+    { path: "../fonts/jetbrains-mono-latin-500.woff2", weight: "500" }
+  ],
+  variable: "--font-mono-face",
+  display: "swap"
+});
 
 export const metadata: Metadata = {
   title: { default: "Setra · Get paid in stablecoins. Your books are already done.", template: "%s · Setra" },
