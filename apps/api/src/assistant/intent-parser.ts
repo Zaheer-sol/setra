@@ -240,7 +240,9 @@ export function parseIntent(input: string): Intent {
     if (customer) return { kind: "history", customer };
   }
 
-  const p = period(t);
+  // "What's the USDC to naira rate today?" names a period but isn't about payments received.
+  const notPayments = /\b(exchange|rates?|convert|conversion|price|weather|naira|ngn|eur|gbp)\b/.test(t);
+  const p = notPayments ? undefined : period(t);
   if (p || /\bhow much\b.*\b(receive|received|collect|collected|paid|pay|made)\b|\bwhat did we (?:receive|get|collect)\b/.test(t)) {
     const customer = subjectBetween(original, /\bhow much (?:did|has)/, /(?:pay|paid)\b/);
     const asset = /\busdc\b/i.test(original) ? "USDC" : /\busdt0?\b/i.test(original) ? "USDT0" : undefined;

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { clean, normalizeAmount, parseIntent, type Intent } from "./intent-parser";
+import { clean, normalizeAmount, parseIntent, titleCase, type Intent } from "./intent-parser";
 
 /**
  * An optional language model behind Seti, for messages the deterministic parser doesn't understand.
@@ -16,24 +16,35 @@ import { clean, normalizeAmount, parseIntent, type Intent } from "./intent-parse
 const BASE_URL = () => (process.env.LLM_BASE_URL || "https://api.groq.com/openai/v1").replace(/\/$/, "");
 const MODEL = () => process.env.LLM_MODEL || "openai/gpt-oss-120b";
 const TIMEOUT_MS = 6000;
+// Room for a reasoning model's thinking before its one-line JSON answer (gpt-oss uses 50 to 400 tokens).
+const MAX_TOKENS = 600;
 
 export const languageModelEnabled = () => !!process.env.LLM_API_KEY;
 
+// Models write optional fields as null and amounts as numbers; both are fine.
+const opt = <T extends z.ZodTypeAny>(schema: T) => z.preprocess((v) => (v === null ? undefined : v), schema.optional());
 const due = z.union([
   z.object({ type: z.enum(["today", "tomorrow"]) }),
   z.object({ type: z.literal("in_days"), days: z.number().int().min(1).max(365) }),
   z.object({ type: z.literal("weekday"), day: z.number().int().min(0).max(6) }),
-  z.object({ type: z.literal("date"), year: z.number().int().min(2020).max(2100).optional(), month: z.number().int().min(1).max(12), day: z.number().int().min(1).max(31) })
+  z.object({ type: z.literal("date"), year: opt(z.number().int().min(2020).max(2100)), month: z.number().int().min(1).max(12), day: z.number().int().min(1).max(31) })
 ]);
 const text = z.string().max(200);
+const amountField = opt(z.union([z.string().max(40), z.number().finite().nonnegative()]).transform((v) => String(v)));
 const finPeriod = z.enum(["month", "last_month", "quarter", "year", "last_year"]);
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+// A month as a number, or its English name ("September", "sept").
+const monthField = z.preprocess(
+  (v) => (typeof v === "string" && MONTHS.indexOf(v.trim().slice(0, 3).toLowerCase()) >= 0 ? MONTHS.indexOf(v.trim().slice(0, 3).toLowerCase()) + 1 : v),
+  z.number().int().min(1).max(12)
+);
 
 /** Every intent the model may return, mirroring the parser's Intent type. */
 const intentSchema = z.discriminatedUnion("kind", [
-  z.object({ kind: z.literal("create_request"), amount: text.optional(), customer: text.optional(), purpose: text.optional(), due: due.optional() }),
-  z.object({ kind: z.literal("payment_status"), customer: text.optional(), invoice: text.optional() }),
-  z.object({ kind: z.literal("summary"), period: z.enum(["today", "yesterday", "week", "month"]), customer: text.optional() }),
-  z.object({ kind: z.literal("outstanding"), customer: text.optional() }),
+  z.object({ kind: z.literal("create_request"), amount: amountField, customer: opt(text), purpose: opt(text), due: opt(due) }),
+  z.object({ kind: z.literal("payment_status"), customer: opt(text), invoice: opt(text) }),
+  z.object({ kind: z.literal("summary"), period: z.enum(["today", "yesterday", "week", "month"]), customer: opt(text) }),
+  z.object({ kind: z.literal("outstanding"), customer: opt(text) }),
   z.object({ kind: z.literal("overdue") }),
   z.object({ kind: z.literal("review"), filter: z.enum(["all", "wrong_amount", "unknown", "duplicate"]) }),
   z.object({ kind: z.literal("latest") }),
@@ -46,9 +57,9 @@ const intentSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("fin_payables") }),
   z.object({ kind: z.literal("fin_health") }),
   z.object({ kind: z.literal("fin_unclassified") }),
-  z.object({ kind: z.literal("record_expense"), amount: text.optional(), title: text.optional(), vendor: text.optional() }),
-  z.object({ kind: z.literal("record_bill"), amount: text.optional(), vendor: text.optional(), title: text.optional(), due: due.optional() }),
-  z.object({ kind: z.literal("close_period"), month: z.number().int().min(1).max(12).optional(), year: z.number().int().min(2020).max(2100).optional(), last: z.boolean().optional() }),
+  z.object({ kind: z.literal("record_expense"), amount: amountField, title: opt(text), vendor: opt(text) }),
+  z.object({ kind: z.literal("record_bill"), amount: amountField, vendor: opt(text), title: opt(text), due: opt(due) }),
+  z.object({ kind: z.literal("close_period"), month: opt(monthField), year: opt(z.number().int().min(2020).max(2100)), last: opt(z.boolean()) }),
   z.object({ kind: z.literal("help") }),
   z.object({ kind: z.literal("unknown") })
 ]);
@@ -86,6 +97,12 @@ const amountStated = (message: string, amount: string) => {
 };
 const stated = (message: string, value: string | undefined) => (value && message.toLowerCase().includes(value.toLowerCase()) ? value : undefined);
 
+// Titles and purposes read the same whether the rules or the model understood the message.
+const titled = (v: string | undefined) => {
+  const c = clean(v);
+  return c ? titleCase(c) : undefined;
+};
+
 function normalized(message: string, raw: z.infer<typeof intentSchema>): Intent {
   const amount = (v: string | undefined) => {
     const m = v?.replace(/[$,\s]/g, "").match(/^(\d+)(?:\.(\d{1,6}))?$/);
@@ -95,7 +112,7 @@ function normalized(message: string, raw: z.infer<typeof intentSchema>): Intent 
   };
   switch (raw.kind) {
     case "create_request":
-      return { kind: "create_request", amount: amount(raw.amount), customer: clean(stated(message, raw.customer)), purpose: clean(raw.purpose), due: raw.due };
+      return { kind: "create_request", amount: amount(raw.amount), customer: clean(stated(message, raw.customer)), purpose: titled(raw.purpose), due: raw.due };
     case "payment_status":
       return { kind: "payment_status", customer: clean(stated(message, raw.customer)), invoice: stated(message, raw.invoice)?.toUpperCase() };
     case "summary":
@@ -113,9 +130,9 @@ function normalized(message: string, raw: z.infer<typeof intentSchema>): Intent 
     case "fin_spend":
       return { kind: "fin_spend", category: clean(raw.category, 60) ?? "general", period: raw.period };
     case "record_expense":
-      return { kind: "record_expense", amount: amount(raw.amount), title: clean(raw.title), vendor: clean(stated(message, raw.vendor)) };
+      return { kind: "record_expense", amount: amount(raw.amount), title: titled(raw.title), vendor: clean(stated(message, raw.vendor)) };
     case "record_bill":
-      return { kind: "record_bill", amount: amount(raw.amount), vendor: clean(stated(message, raw.vendor)), title: clean(raw.title), due: raw.due };
+      return { kind: "record_bill", amount: amount(raw.amount), vendor: clean(stated(message, raw.vendor)), title: titled(raw.title), due: raw.due };
     default:
       return raw as Intent;
   }
@@ -139,7 +156,7 @@ export async function modelIntent(message: string, fetchImpl: typeof fetch = fet
     const res = await fetchImpl(`${BASE_URL()}/chat/completions`, {
       method: "POST",
       headers: { authorization: `Bearer ${key}`, "content-type": "application/json" },
-      body: JSON.stringify({ model: MODEL(), temperature: 0, max_tokens: 200, response_format: { type: "json_object" }, messages: [{ role: "system", content: SYSTEM }, { role: "user", content: message.slice(0, 2000) }] }),
+      body: JSON.stringify({ model: MODEL(), temperature: 0, max_tokens: MAX_TOKENS, response_format: { type: "json_object" }, messages: [{ role: "system", content: SYSTEM }, { role: "user", content: message.slice(0, 2000) }] }),
       signal: AbortSignal.timeout(TIMEOUT_MS)
     });
     if (!res.ok) {

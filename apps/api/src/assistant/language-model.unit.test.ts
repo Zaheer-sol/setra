@@ -35,6 +35,13 @@ describe("Seti's language model", () => {
     expect(invented).toMatchObject({ kind: "create_request", amount: undefined, customer: undefined, purpose: "Audit" });
   });
 
+  it("accepts what models actually write: numeric amounts, nulls and month names", async () => {
+    expect(await modelIntent("I spent 45 dollars on figma", model({ kind: "record_expense", amount: 45, title: "figma", vendor: null }))).toEqual({ kind: "record_expense", amount: "45.00", title: "Figma", vendor: undefined });
+    expect(await modelIntent("bill them 99", model({ kind: "create_request", amount: 120, customer: null }))).toMatchObject({ kind: "create_request", amount: undefined });
+    expect(await modelIntent("close the books for september", model({ kind: "close_period", month: "September", year: null }))).toEqual({ kind: "close_period", month: 9 });
+    expect(await modelIntent("close the books", model({ kind: "close_period", month: "Smarch" }))).toEqual({ kind: "unknown" });
+  });
+
   it("treats anything off-schema, malformed or failing as not understood", async () => {
     expect(await modelIntent("x", model({ kind: "transfer_funds", to: "0xabc" }))).toEqual({ kind: "unknown" });
     expect(await modelIntent("x", model({ kind: "summary", period: "decade" }))).toEqual({ kind: "unknown" });
