@@ -93,7 +93,7 @@ function Workspace() {
           Setra keeps financial history permanently. Evidence, decisions, events and audit entries cannot be edited or deleted.
         </p>
       </Card>
-      <Card title="Counterparty lookups" description="See who's behind the wallet that sent an unidentified payment.">
+      <Card title="Counterparty lookups" description="See who's behind wallets you don't recognise, using Nansen's public data.">
         <div className="grid gap-3 px-6 py-5 max-md:px-4">
           <label className="flex items-start gap-3">
             <input
@@ -112,8 +112,8 @@ function Workspace() {
               }}
             />
             <span className="text-sm">
-              <span className="block font-medium">Look up unknown senders with Nansen</span>
-              <span className="text-muted-foreground">When you open an unidentified payment, Setra sends the sender's public address to Nansen and shows its public labels (for example, an exchange wallet) with a suggested next step. Nothing is matched automatically.</span>
+              <span className="block font-medium">Look up unknown wallets with Nansen</span>
+              <span className="text-muted-foreground">Setra sends a public wallet address to Nansen when you look at an unidentified payment, a transfer you sent, or an address you're about to save. It shows the wallet's public labels (for example, an exchange), which of your customers it has dealt with, and a suggested next step. Nothing is matched or saved automatically.</span>
             </span>
           </label>
           {!data.counterparty_intel_available && <p className="text-xs text-muted-foreground">Needs a Nansen API key on the server (NANSEN_API_KEY).</p>}

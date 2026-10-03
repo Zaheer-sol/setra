@@ -72,6 +72,7 @@ function ClassifyView() {
                       <p className="text-sm text-muted-foreground">
                         To {t.vendor ? <span className="font-medium text-foreground">{t.vendor.name}</span> : <span className="font-mono">{shortAddress(t.to_address)}</span>} from {t.wallet.name} · {calendarDate(t.sent_at.slice(0, 10))} · <TxProof hash={t.transaction_hash} />
                       </p>
+                      {!t.vendor && <CounterpartyInsight outgoingId={t.id} compact />}
                     </div>
                     {write && (
                       <div className="flex flex-wrap gap-2">

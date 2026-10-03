@@ -45,6 +45,7 @@ export type Intent =
   | { kind: "record_expense"; amount?: string; title?: string; vendor?: string; paidFrom?: "bank" | "owner" }
   | { kind: "close_period"; month?: number; year?: number; last?: boolean }
   | { kind: "record_bill"; amount?: string; vendor?: string; title?: string; number?: string; due?: DueSpec }
+  | { kind: "who_sent"; amount?: string }
   | { kind: "help" }
   | { kind: "unknown" };
 
@@ -197,6 +198,13 @@ export function parseIntent(input: string): Intent {
   const tx = TX_RE.exec(original)?.[1]?.toLowerCase();
 
   if (/^\/?(help|\?)$|^(what can you do|how does this work|what do you do)\b|^(hi|hello|hey)\b[\s!.?]*$/.test(t)) return { kind: "help" };
+
+  // "Who sent the $740?" / "where did that 740 come from?": who is behind an unidentified payment.
+  if (/\b(who\s+(?:sent|sends|transferred)|who(?:\s+is|\s+was|['’]s)\s+behind|whose\s+(?:money|payment|transfer)|where\s+did\s+.+\s+come\s+from)\b/.test(t)) {
+    const marked = findAmount(original)?.amount;
+    const bare = /\b(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,6}))?\b/.exec(original.replace(INVOICE_RE, ""));
+    return { kind: "who_sent", amount: marked ?? (bare ? normalizeAmount(bare[1]!, bare[2], false) ?? undefined : undefined) };
+  }
 
   // Corrections: "The payment from John is actually for the website project" / "Move John's payment to INV-2051"
   if (/\b(actually|should (?:have been|be)|was meant for|belongs to|reassign|move)\b/.test(t) && /\bpayment\b/.test(t)) {

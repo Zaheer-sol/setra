@@ -226,7 +226,12 @@ describe("accounting API", () => {
     process.env.NANSEN_API_KEY = "test-key";
     const realFetch = globalThis.fetch;
     let calls = 0;
+    let relationCalls = 0;
     globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).endsWith("/profiler/address/counterparties")) {
+        relationCalls += 1;
+        return new Response(JSON.stringify({ pagination: { page: 1, per_page: 100, is_last_page: true }, data: [] }), { status: 200, headers: { "content-type": "application/json" } });
+      }
       if (String(url).includes("api.nansen.ai")) {
         calls += 1;
         const body = JSON.parse(String(init?.body));
@@ -243,6 +248,7 @@ describe("accounting API", () => {
       expect(first.suggestion).toMatch(/Don't save this address/);
       expect((await lookup()).cached).toBe(true);
       expect(calls).toBe(1);
+      expect(relationCalls).toBe(1); // who the unknown sender has dealt with, cached the same way
     } finally {
       globalThis.fetch = realFetch;
       if (saved === undefined) delete process.env.NANSEN_API_KEY;

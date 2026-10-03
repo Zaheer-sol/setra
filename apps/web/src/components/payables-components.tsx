@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Alert, Button, Card, ChoiceCard, ChoiceGroup, Field, fieldErrors, Input, Modal, MoneyInput, Select, Textarea, useToast } from "@/components/app-ui";
 import { AccountSelect, isPayFromAccount, isSpendAccount } from "@/components/ledger-components";
+import { AddressCheck } from "@/components/counterparty";
 import { useSession } from "@/components/session";
 import { api, newIdempotencyKey, useApi, type ApiError } from "@/lib/api";
 import { calendarDate, money, shortAddress, todayIso, tokenAmount } from "@/lib/format";
@@ -52,6 +53,7 @@ export function VendorModal({ open, onClose, onCreated }: { open: boolean; onClo
         <Field label="Vendor wallet address" htmlFor="v-addr" optional hint="Transfers to this address will show the vendor's name." error={errs["wallet_addresses.0.address"]}>
           <Input id="v-addr" className="font-mono" value={form.address} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} placeholder="0x…" spellCheck={false} />
         </Field>
+        <AddressCheck address={form.address} />
       </form>
     </Modal>
   );

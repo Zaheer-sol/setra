@@ -40,6 +40,8 @@ describe("Seti's language model", () => {
     expect(await modelIntent("bill them 99", model({ kind: "create_request", amount: 120, customer: null }))).toMatchObject({ kind: "create_request", amount: undefined });
     expect(await modelIntent("close the books for september", model({ kind: "close_period", month: "September", year: null }))).toEqual({ kind: "close_period", month: 9 });
     expect(await modelIntent("close the books", model({ kind: "close_period", month: "Smarch" }))).toEqual({ kind: "unknown" });
+    expect(await modelIntent("whose money is this 740", model({ kind: "who_sent", amount: 740 }))).toEqual({ kind: "who_sent", amount: "740.00" });
+    expect(await modelIntent("whose money is this", model({ kind: "who_sent", amount: 99 }))).toEqual({ kind: "who_sent", amount: undefined });
   });
 
   it("treats anything off-schema, malformed or failing as not understood", async () => {

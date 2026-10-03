@@ -305,6 +305,8 @@ async function respondInner(ctx: AssistantContext, text: string, choice?: string
       return accounting(ctx, intent);
     case "correction":
       return correction(ctx, intent);
+    case "who_sent":
+      return whoSent(ctx, intent.amount);
     case "help":
       return { intent: "help", pending: null, blocks: HELP };
     case "fin_pl":
@@ -718,6 +720,39 @@ async function historyForCustomer(ctx: AssistantContext, customerId: string, nam
     ]
   };
 }
+
+/** "Who sent the $740?": the public picture of the wallet behind an unidentified payment (Nansen), as advice. */
+async function whoSent(ctx: AssistantContext, amount?: string): Promise<Reply> {
+  const pending = (await api<{ data: Any[] }>(ctx, "GET", `/v1/payments?${qs({ status: "needs_review", limit: 25 })}`)).data.filter((p) => !p.customer);
+  const target = amount ? pending.find((p) => p.amount === amount) : pending[0];
+  if (!target) {
+    const text = amount
+      ? `I don't see an unidentified payment of $${formatAmount(amount)}. Every payment of that amount is already tied to a customer or invoice.`
+      : "There's no unidentified payment right now. Every payment so far came from a customer I could place.";
+    return { intent: "who_sent", pending: null, blocks: [{ type: "text", text }] };
+  }
+  const [detail, intel] = await Promise.all([api(ctx, "GET", `/v1/payments/${target.id}`), api(ctx, "GET", `/v1/payments/${target.id}/counterparty`)]);
+  const paid = `${formatAmount(detail.amount)} ${detail.asset?.symbol ?? ""}`.trim();
+  const card: Block = { type: "payment", ...paymentTitle(detail), payment: paymentCard(detail), note: paymentNote(detail) };
+  if (intel.status === "disabled") {
+    return { intent: "who_sent", pending: null, blocks: [{ type: "notice", tone: "info", title: "I can check who's behind that wallet, but counterparty lookups are off.", text: "Turn them on in Settings. Setra then asks Nansen for the wallet's public labels.", link: { label: "Open Settings", href: "/app/settings" } }, card] };
+  }
+  if (intel.status !== "ok" && intel.status !== "none") return { intent: "who_sent", pending: null, blocks: [{ type: "notice", tone: "info", title: intel.message ?? "I couldn't look that wallet up right now." }, card] };
+  const related: Any[] = intel.related_customers ?? [];
+  const top = related[0];
+  const lead = top ? ` That wallet has moved money with ${top.customer_name}'s saved wallet ${top.interactions === 1 ? "once" : `${top.interactions} times`}, so I'd start with ${top.customer_name}'s open invoices.` : "";
+  return {
+    intent: "who_sent",
+    pending: null,
+    blocks: [
+      { type: "text", text: `The ${paid} came from ${intel.address.slice(0, 6)}…${intel.address.slice(-4)}. ${intel.summary}${lead}` },
+      { type: "text", text: `What I'd do: ${lowerFirst(intel.suggestion)} It's a clue from Nansen's public data, not a match, so the decision is yours.` },
+      card
+    ]
+  };
+}
+
+const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
 
 async function find(ctx: AssistantContext, query: string): Promise<Reply> {
   const [payments, invoices] = await Promise.all([api<{ data: Any[] }>(ctx, "GET", `/v1/payments?${qs({ search: query, limit: 5 })}`), api<{ data: Any[] }>(ctx, "GET", `/v1/invoices?${qs({ search: query, limit: 5 })}`)]);

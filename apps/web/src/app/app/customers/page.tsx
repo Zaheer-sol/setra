@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { Plus, Search, Users } from "lucide-react";
+import { AddressCheck } from "@/components/counterparty";
 import { useSession } from "@/components/session";
 import { Alert, Badge, Button, Card, EmptyState, ErrorState, Field, fieldErrors, Input, Modal, Money, PageHeader, Pager, SearchInput, SkeletonRows, Toolbar, useCursorPager, useToast } from "@/components/app-ui";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -147,6 +148,7 @@ function NewCustomerModal({ open, onClose, onCreated }: { open: boolean; onClose
         <Field label="Customer wallet address" htmlFor="c-addr" optional hint="The address they pay from on Monad. You can add more later." error={errs["wallet_addresses.0.address"]}>
           <Input id="c-addr" className="font-mono" value={form.address} onChange={set("address")} placeholder="0x…" spellCheck={false} />
         </Field>
+        <AddressCheck address={form.address} />
       </form>
     </Modal>
   );

@@ -52,6 +52,16 @@ describe("questions", () => {
   });
 });
 
+describe("who sent a payment", () => {
+  it("reads 'who sent' questions, with or without a money marker on the amount", () => {
+    expect(parseIntent("who sent the $740?")).toEqual({ kind: "who_sent", amount: "740.00" });
+    expect(parseIntent("who sent that 740")).toEqual({ kind: "who_sent", amount: "740.00" });
+    expect(parseIntent("where did the 1,250.50 USDC come from?")).toEqual({ kind: "who_sent", amount: "1250.50" });
+    expect(parseIntent("who's behind that payment")).toEqual({ kind: "who_sent", amount: undefined });
+    expect(parseIntent("did Acme pay?")).toMatchObject({ kind: "payment_status" });
+  });
+});
+
 describe("hostile and malformed input", () => {
   it("a rate or price question that names a day is not a payments summary", () => {
     expect(parseIntent("what's the USDC to naira rate today")).toEqual({ kind: "unknown" });

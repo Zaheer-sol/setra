@@ -60,6 +60,7 @@ const intentSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("record_expense"), amount: amountField, title: opt(text), vendor: opt(text) }),
   z.object({ kind: z.literal("record_bill"), amount: amountField, vendor: opt(text), title: opt(text), due: opt(due) }),
   z.object({ kind: z.literal("close_period"), month: opt(monthField), year: opt(z.number().int().min(2020).max(2100)), last: opt(z.boolean()) }),
+  z.object({ kind: z.literal("who_sent"), amount: amountField }),
   z.object({ kind: z.literal("help") }),
   z.object({ kind: z.literal("unknown") })
 ]);
@@ -84,6 +85,7 @@ const SYSTEM = `You translate one message from a business owner into a JSON inte
 {"kind":"record_expense","amount"?,"title"?,"vendor"?}
 {"kind":"record_bill","amount"?,"vendor"?,"title"?,"due"?}
 {"kind":"close_period","month"?,"year"?,"last"?}  close the books for a month
+{"kind":"who_sent","amount"?}  who is behind a payment from an unknown wallet ("who sent the $740?")
 {"kind":"help"}
 {"kind":"unknown"}  anything else
 "due" is {"type":"today"} | {"type":"tomorrow"} | {"type":"in_days","days":N} | {"type":"weekday","day":0-6 with 0=Sunday} | {"type":"date","year"?,"month","day"}.
@@ -131,6 +133,8 @@ function normalized(message: string, raw: z.infer<typeof intentSchema>): Intent 
       return { kind: "fin_spend", category: clean(raw.category, 60) ?? "general", period: raw.period };
     case "record_expense":
       return { kind: "record_expense", amount: amount(raw.amount), title: titled(raw.title), vendor: clean(stated(message, raw.vendor)) };
+    case "who_sent":
+      return { kind: "who_sent", amount: amount(raw.amount) };
     case "record_bill":
       return { kind: "record_bill", amount: amount(raw.amount), vendor: clean(stated(message, raw.vendor)), title: titled(raw.title), due: raw.due };
     default:
