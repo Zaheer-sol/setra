@@ -47,10 +47,15 @@ interface Seed {
 export const DEFAULT_CHART: Seed[] = [
   { code: "1030", name: "Bank Account", type: "asset", subtype: "cash", normal: "debit", key: "bank", description: "Money held off-chain, for payments made outside Setra's wallets." },
   { code: "1100", name: "Accounts Receivable", type: "asset", subtype: "receivable", normal: "debit", key: "accounts_receivable", description: "What customers owe on issued invoices." },
+  { code: "1300", name: "Inventory", type: "asset", subtype: "other_asset", normal: "debit", description: "Goods held for sale, at cost." },
+  { code: "1500", name: "Equipment", type: "asset", subtype: "other_asset", normal: "debit", description: "Computers, machines and other equipment the business owns." },
   { code: "1950", name: "Transfers to Classify", type: "asset", subtype: "clearing", normal: "debit", key: "transfers_to_classify", description: "Stablecoin sent from your wallets that hasn't been assigned to a refund, bill, expense or transfer yet. Should be zero once everything is classified." },
   { code: "2010", name: "Accounts Payable", type: "liability", subtype: "payable", normal: "credit", key: "accounts_payable", description: "What you owe vendors on approved bills." },
   { code: "2020", name: "Customer Credits", type: "liability", subtype: "customer_credit", normal: "credit", key: "customer_credits", description: "Money customers paid beyond what they owed (overpayments), until refunded or applied." },
+  { code: "2030", name: "Customer Deposits", type: "liability", subtype: "other_liability", normal: "credit", description: "Money customers paid before the work was done or an invoice existed, until it's earned or applied." },
   { code: "2050", name: "Payments to Identify", type: "liability", subtype: "suspense", normal: "credit", key: "payments_to_identify", description: "Money received that isn't tied to an invoice yet (unknown senders, duplicates, set-aside payments). Never counted as revenue." },
+  { code: "2200", name: "Taxes Payable", type: "liability", subtype: "other_liability", normal: "credit", description: "Sales tax, VAT or other taxes collected or owed and not yet paid." },
+  { code: "2300", name: "Loans Payable", type: "liability", subtype: "other_liability", normal: "credit", description: "Money borrowed that has to be repaid." },
   { code: "3000", name: "Owner's Equity", type: "equity", subtype: "equity", normal: "credit", key: "owner_equity" },
   { code: "3050", name: "Opening Balance Equity", type: "equity", subtype: "equity", normal: "credit", key: "opening_balance_equity", description: "The other side of opening balances entered when you start your books. Usually moved to Owner's Equity or Retained Earnings once confirmed." },
   { code: "3900", name: "Retained Earnings", type: "equity", subtype: "retained_earnings", normal: "credit", key: "retained_earnings" },
@@ -69,6 +74,8 @@ export const DEFAULT_CHART: Seed[] = [
   { code: "6060", name: "Professional Services", type: "expense", subtype: "expense", normal: "debit" },
   { code: "6070", name: "Office & Admin", type: "expense", subtype: "expense", normal: "debit" },
   { code: "6080", name: "Travel", type: "expense", subtype: "expense", normal: "debit" },
+  { code: "6100", name: "Salaries & Wages", type: "expense", subtype: "expense", normal: "debit" },
+  { code: "6110", name: "Rent", type: "expense", subtype: "expense", normal: "debit" },
   { code: "6950", name: "Exchange Gains & Losses", type: "expense", subtype: "expense", normal: "debit", key: "fx_gain_loss", description: "Differences from exchange-rate movements on non-USD stablecoins. A negative balance is a net gain." },
   { code: "6900", name: "Bad Debts & Write-offs", type: "expense", subtype: "expense", normal: "debit", key: "bad_debt", description: "Invoice balances written off as uncollectable." }
 ];

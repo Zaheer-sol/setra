@@ -54,6 +54,8 @@ export const ID_PREFIXES = {
   recurringBill: "rbill",
   booksAttestation: "batt",
   webhookEndpoint: "we",
+  orderSource: "osrc",
+  orderSourceEvent: "osev",
   webhookDelivery: "whd",
   webhookAttempt: "wha",
   auditLog: "aud",

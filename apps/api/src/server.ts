@@ -14,6 +14,7 @@ import { authRoutes } from "./routes/auth";
 import { customerRoutes } from "./routes/customers";
 import { developerRoutes } from "./routes/developers";
 import { invoiceRoutes } from "./routes/invoices";
+import { inboundOrderRoutes, orderRoutes } from "./routes/orders";
 import { organizationRoutes } from "./routes/organization";
 import { paymentRoutes } from "./routes/payments";
 import { executionStreams } from "@setra/engine";
@@ -196,6 +197,9 @@ export async function buildServer(options: { logger?: boolean } = {}): Promise<F
   walletRoutes(app);
   customerRoutes(app);
   invoiceRoutes(app);
+  orderRoutes(app);
+  // Its own scope: a JSON parser that keeps the raw body, for signature checks, without touching other routes.
+  app.register(inboundOrderRoutes);
   paymentRoutes(app);
   reportingRoutes(app);
   accountingRoutes(app);

@@ -21,7 +21,7 @@ function Onboarding() {
   const creatingNew = params.get("new") === "1";
   const { data: me, error: meError, mutate } = useApi<any>("/v1/me", { shouldRetryOnError: false });
   const [step, setStep] = useState(0);
-  const [setup, setSetup] = useState<"books" | "collect">("books");
+  const [setup, setSetup] = useState<"books" | "collect" | "connect">("books");
   const steps = setup === "books" ? STEPS.slice(0, 2) : STEPS;
   const [error, setError] = useState<ApiError | null>(null);
   const [busy, setBusy] = useState(false);
@@ -56,6 +56,11 @@ function Onboarding() {
   const finishBooks = async () => {
     await api("/v1/organization", { method: "PATCH", body: { onboarding_completed: true } });
     router.push("/app/accounting");
+  };
+  // Orders come from the merchant's own store or backend: connect it, and Setra takes it from there.
+  const finishConnect = async () => {
+    await api("/v1/organization", { method: "PATCH", body: { onboarding_completed: true } });
+    router.push("/app/developers/orders");
   };
 
   if (!me)
@@ -141,6 +146,7 @@ function Onboarding() {
                       if ((e as ApiError).code !== "wallet_exists") throw e;
                     });
                     if (setup === "books") await finishBooks();
+                    else if (setup === "connect") await finishConnect();
                     else setStep(2);
                   });
                 }}
@@ -153,7 +159,8 @@ function Onboarding() {
                   <legend className="mb-2 text-sm font-medium">Choose your starting point</legend>
                   {([
                     ["books", "Start with my books", "Classify money, record bills and expenses, and review reports. No invoice required."],
-                    ["collect", "Collect a payment", "Connect a wallet, add a customer and create your first payment request."]
+                    ["collect", "Collect a payment", "Connect a wallet, add a customer and create your first payment request."],
+                    ["connect", "Connect my store or checkout", "Your store, checkout or backend sends Setra each order. Payments are matched and booked without you creating invoices."]
                   ] as const).map(([value, title, description]) => (
                     <label key={value} className={cn("flex cursor-pointer items-start gap-3 rounded-xl border p-4", setup === value && "border-primary bg-primary/5")}>
                       <input type="radio" name="setup" value={value} checked={setup === value} onChange={() => setSetup(value)} className="mt-1 accent-[var(--primary)]" />

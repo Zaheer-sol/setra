@@ -13,6 +13,7 @@ export default function DevelopersLayout({ children }: { children: ReactNode }) 
         label="Developers"
         tabs={[
           { href: "/app/developers", label: "Overview", exact: true },
+          { href: "/app/developers/orders", label: "Orders" },
           { href: "/app/developers/api-keys", label: "API keys" },
           { href: "/app/developers/webhooks", label: "Webhooks" },
           { href: "/app/developers/events", label: "Events" },

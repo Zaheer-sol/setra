@@ -11,7 +11,13 @@ import { accountInvoiceCancelled, accountInvoiceIssued } from "./accounting/post
 
 type Row = Record<string, any>;
 
-export async function createInvoice(client: Client, organizationId: string, environment: Environment, input: CreateInvoiceInput, actor: Actor): Promise<Row> {
+/** Where an invoice came from, when it mirrors an order in the merchant's own system. */
+export interface InvoiceOrigin {
+  externalId?: string;
+  orderSourceId?: string | null;
+}
+
+export async function createInvoice(client: Client, organizationId: string, environment: Environment, input: CreateInvoiceInput, actor: Actor, origin: InvoiceOrigin = {}): Promise<Row> {
   const customer = (await client.query("SELECT * FROM customers WHERE id = $1 AND organization_id = $2 AND environment = $3 AND archived_at IS NULL", [input.customer_id, organizationId, environment])).rows[0];
   if (!customer) throw new EngineError("customer_not_found", "Choose a customer from this workspace.", 404);
 
@@ -84,8 +90,8 @@ export async function createInvoice(client: Client, organizationId: string, envi
   const id = newId("invoice");
   try {
     await client.query(
-      `INSERT INTO invoices (id, organization_id, environment, customer_id, number, title, purpose, currency, asset_id, chain_id, wallet_id, amount_due, public_token, due_at, expires_at, metadata, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
+      `INSERT INTO invoices (id, organization_id, environment, customer_id, number, title, purpose, currency, asset_id, chain_id, wallet_id, amount_due, public_token, due_at, expires_at, metadata, created_by, external_id, order_source_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
       [
         id,
         organizationId,
@@ -103,10 +109,15 @@ export async function createInvoice(client: Client, organizationId: string, envi
         input.due_at ?? null,
         input.expires_at ?? null,
         JSON.stringify(input.metadata ?? {}),
-        actor.id ?? null
+        actor.id ?? null,
+        origin.externalId ?? null,
+        origin.orderSourceId ?? null
       ]
     );
   } catch (error) {
+    if (isUniqueViolation(error) && origin.externalId && String((error as { constraint?: string }).constraint) === "invoices_external_id") {
+      throw new EngineError("order_exists", `Order ${origin.externalId} already exists.`, 409);
+    }
     if (isUniqueViolation(error)) throw new EngineError("invoice_number_taken", `Invoice number ${number} is already used.`, 409);
     throw error;
   }

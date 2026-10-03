@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BookOpen, FlaskConical, KeyRound, Radio, Webhook } from "lucide-react";
+import { ArrowRight, BookOpen, FlaskConical, KeyRound, Plug, Radio, Webhook } from "lucide-react";
 import { useSession } from "@/components/session";
 import { Card, CodeBlock, KV, PageHeader } from "@/components/app-ui";
 import { useApi } from "@/lib/api";
@@ -9,12 +9,14 @@ import { useApi } from "@/lib/api";
 export default function DevelopersPage() {
   const { isTest } = useSession();
   const { data: keys } = useApi<{ data: any[] }>("/v1/api-keys");
+  const { data: sources } = useApi<{ data: any[] }>("/v1/order-sources");
   const { data: endpoints } = useApi<{ data: any[] }>("/v1/webhook-endpoints");
   const { data: events } = useApi<{ data: any[] }>("/v1/financial-events?limit=1");
   const { data: health } = useApi<any>("/v1/health", { refreshInterval: 10_000 });
   const prefix = isTest ? "sk_test" : "sk_live";
 
   const tiles = [
+    { href: "/app/developers/orders", icon: <Plug />, title: "Orders from your systems", body: sources ? (sources.data.length ? `${sources.data.length} connected` : "Connect a store or backend") : "…" },
     { href: "/app/developers/api-keys", icon: <KeyRound />, title: "API keys", body: keys ? `${keys.data.filter((k) => !k.revoked_at).length} active` : "…" },
     { href: "/app/developers/webhooks", icon: <Webhook />, title: "Webhooks", body: endpoints ? `${endpoints.data.length} endpoint${endpoints.data.length === 1 ? "" : "s"}` : "…" },
     { href: "/app/developers/events", icon: <Radio />, title: "Financial events", body: events?.data[0] ? `Latest: ${events.data[0].type}` : "No events yet" },
@@ -24,7 +26,7 @@ export default function DevelopersPage() {
   return (
     <div className="grid gap-6 [&>*]:min-w-0">
       <PageHeader title="Developers" description="Everything in the console is available through the Setra API. Create invoices from your backend and react to payments with signed webhooks." />
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         {tiles.map((t) => (
           <Link key={t.href} href={t.href} className="grid min-w-0 gap-2 rounded-2xl bg-card px-6 py-5 shadow-card transition-shadow hover:shadow-raised">
             <span className="grid size-10 place-items-center rounded-xl bg-primary text-primary-foreground [&_svg]:size-5">{t.icon}</span>
@@ -38,7 +40,7 @@ export default function DevelopersPage() {
         <Card title="1. Create an invoice" description="From your backend, with an idempotency key.">
           <div className="px-6 py-5 max-md:px-4">
             <CodeBlock
-              code={`curl https://api.setra.dev/v1/invoices \\
+              code={`curl https://setra.up.railway.app/api/v1/invoices \\
   -H "Authorization: Bearer ${prefix}_…" \\
   -H "Idempotency-Key: order-8812" \\
   -H "Content-Type: application/json" \\

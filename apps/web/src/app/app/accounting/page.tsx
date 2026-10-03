@@ -175,20 +175,7 @@ function PeriodsCard() {
   const toast = useToast();
   const { data, mutate } = useApi<{ data: Array<{ month: string; status: string; ended: boolean; posted_entries: number; draft_entries: number; closed_by: string | null; reopen_reason: string | null }> }>("/v1/accounting/periods");
   const [reopen, setReopen] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
   const label = (m: string) => new Date(Number(m.slice(0, 4)), Number(m.slice(5)) - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
-  const close = async (month: string) => {
-    setBusy(month);
-    try {
-      await api("/v1/accounting/periods/close", { method: "POST", body: { month } });
-      toast("success", `${label(month)} is closed. Nothing more can be posted into it.`);
-      mutate();
-    } catch (e) {
-      toast("error", (e as ApiError).message);
-    } finally {
-      setBusy(null);
-    }
-  };
   return (
     <Card title="Periods" description="Close a month once it's final. Late activity lands in the next open month.">
       {!data ? (
@@ -199,7 +186,7 @@ function PeriodsCard() {
             <li key={p.month} className="flex items-center justify-between gap-3 px-6 py-3 max-md:px-4">
               <div className="min-w-0">
                 <p className="flex items-center gap-2 font-medium">
-                  {label(p.month)}
+                  <Link href={`/app/accounting/periods/${p.month}`} className="hover:underline">{label(p.month)}</Link>
                   {p.status === "closed" ? <Badge tone="neutral" icon={<Lock className="size-3" />} dot={false}>Closed</Badge> : !p.ended ? <Badge tone="info">Current</Badge> : null}
                 </p>
                 <p className="text-xs text-muted-foreground">
@@ -214,10 +201,14 @@ function PeriodsCard() {
                     Reopen
                   </Button>
                 ) : p.ended ? (
-                  <Button size="sm" icon={<Lock />} loading={busy === p.month} onClick={() => close(p.month)}>
-                    Close
-                  </Button>
-                ) : null)}
+                  <ButtonLink size="sm" icon={<Lock />} href={`/app/accounting/periods/${p.month}`}>
+                    Review and close
+                  </ButtonLink>
+                ) : (
+                  <ButtonLink size="sm" variant="ghost" href={`/app/accounting/periods/${p.month}`}>
+                    So far
+                  </ButtonLink>
+                ))}
             </li>
           ))}
         </ul>

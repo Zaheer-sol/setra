@@ -78,6 +78,7 @@ export function invoiceRoutes(app: FastifyInstance) {
         if (query.customer_id) add("i.customer_id = ?", query.customer_id);
         if (query.created_gte) add("i.created_at >= ?", query.created_gte);
         if (query.created_lte) add("i.created_at <= ?", query.created_lte);
+        if (query.external_id) add("i.external_id = ?", query.external_id);
         if (query.search) add("(i.number ILIKE ? OR i.title ILIKE ? OR i.purpose ILIKE ? OR c.name ILIKE ?)", `%${query.search.replace(/[%_\\]/g, "\\$&")}%`);
         where += cursorClause(params, query.starting_after, "i.id");
         params.push(query.limit + 1);

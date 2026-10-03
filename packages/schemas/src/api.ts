@@ -98,7 +98,7 @@ export const updateCustomerInput = z.object({
   metadata: metadata.optional()
 });
 export const addCustomerAddressInput = z.object({ address, network: networkFamily.default("monad"), label: z.string().trim().max(80).optional() });
-export const customerListQuery = listQuery.extend({ search: z.string().trim().max(120).optional() });
+export const customerListQuery = listQuery.extend({ search: z.string().trim().max(120).optional(), external_ref: z.string().trim().min(1).max(120).optional() });
 
 // ---- invoices ---------------------------------------------------------------------------------
 
@@ -144,9 +144,60 @@ export const invoiceListQuery = listQuery.extend({
   /** `unpaid`: open or partially paid. `overdue`: unpaid and past its due date. */
   state: z.enum(["unpaid", "overdue"]).optional(),
   customer_id: z.string().max(64).optional(),
+  external_id: z.string().trim().min(1).max(120).optional(),
   search: z.string().trim().max(120).optional(),
   ...dateRange
 });
+
+/**
+ * An order from the merchant's own system (store, checkout, payment processor or backend). Setra keeps it
+ * as an invoice keyed by the merchant's order ID, so the merchant never creates invoices by hand. Sending
+ * the same order again is harmless; a changed amount replaces the order while nothing has been paid.
+ */
+export const orderInput = z
+  .object({
+    external_id: z.string().trim().min(1).max(120),
+    /** Shown on the order and in exports. Defaults to Setra's own numbering. */
+    number: z
+      .string()
+      .trim()
+      .max(40)
+      .regex(/^[A-Za-z0-9][A-Za-z0-9._/-]*$/, "Use letters, numbers, dashes, dots or slashes")
+      .optional(),
+    status: z.enum(["open", "cancelled"]).default("open"),
+    customer_id: z.string().max(64).optional(),
+    customer: z
+      .object({
+        external_ref: z.string().trim().min(1).max(120).optional(),
+        name: z.string().trim().min(1).max(160).optional(),
+        email: z.string().trim().toLowerCase().email().max(254).optional(),
+        wallet_addresses: z.array(z.object({ address, network: networkFamily.default("monad") })).max(20).default([])
+      })
+      .optional(),
+    title: z.string().trim().min(1).max(140).optional(),
+    purpose: z.string().trim().min(1).max(500).optional(),
+    line_items: z.array(lineItemInput).min(1).max(50).optional(),
+    amount: decimalAmount.optional(),
+    currency: z.literal("USD").default("USD"),
+    asset: z.string().trim().toUpperCase().default("USDC"),
+    network: networkFamily.default("monad"),
+    wallet_id: z.string().max(64).optional(),
+    due_at: z.string().datetime({ offset: true }).optional(),
+    expires_at: z.string().datetime({ offset: true }).optional(),
+    metadata
+  })
+  .refine((v) => v.status === "cancelled" || v.amount !== undefined || (v.line_items?.length ?? 0) > 0, { message: "Enter an amount or add line items", path: ["amount"] })
+  .refine((v) => v.status === "cancelled" || v.customer_id || v.customer?.external_ref || v.customer?.email, {
+    message: "Say who the customer is: customer_id, customer.external_ref or customer.email",
+    path: ["customer"]
+  });
+export type OrderInput = z.infer<typeof orderInput>;
+
+export const createOrderSourceInput = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("generic"), name: z.string().trim().min(1).max(80) }),
+  /** Shopify signs order webhooks with the store's own signing secret, shown under Settings → Notifications → Webhooks. */
+  z.object({ kind: z.literal("shopify"), name: z.string().trim().min(1).max(80), secret: z.string().trim().min(16).max(200) })
+]);
 
 export const cancelInvoiceInput = z.object({ reason: z.string().trim().max(500).optional() }).default({});
 

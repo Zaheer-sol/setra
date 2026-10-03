@@ -113,6 +113,9 @@ export function serializeInvoice(row: Row, publicAppUrl: string, extra: { custom
     object: "invoice",
     livemode: row.environment === "live",
     number: row.number,
+    /** The merchant's own order ID, for invoices that mirror an order in their system. */
+    external_id: row.external_id ?? null,
+    order_source_id: row.order_source_id ?? null,
     title: row.title ?? null,
     purpose: row.purpose ?? null,
     line_items: serializeLineItems(extra.lineItems, d),

@@ -74,6 +74,10 @@ export function customerRoutes(app: FastifyInstance) {
       tx(async (c) => {
         const params: unknown[] = [organizationId, environment];
         let where = "organization_id = $1 AND environment = $2 AND archived_at IS NULL";
+        if (query.external_ref) {
+          params.push(query.external_ref);
+          where += ` AND external_ref = $${params.length}`;
+        }
         if (query.search) {
           params.push(`%${query.search.replace(/[%_\\]/g, "\\$&")}%`);
           where += ` AND (name ILIKE $${params.length} OR email ILIKE $${params.length} OR external_ref ILIKE $${params.length}

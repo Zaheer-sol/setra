@@ -267,6 +267,7 @@ export default function InvoiceDetailPage() {
               <KV
                 items={[
                   ["Customer", <TextLink key="c" href={`/app/customers/${inv.customer.id}`}>{inv.customer.name}</TextLink>],
+                  inv.external_id ? ["Your order", <span key="o" className="font-mono text-xs">{inv.external_id}{inv.order_source_id ? " · sent by a connected source" : " · sent through the API"}</span>] : null,
                   ["Currency", inv.currency],
                   ["Pay with", `${inv.asset?.symbol} on ${inv.network_name}`],
                   ["Wallet", <Address key="w" value={inv.receiving_address} />],

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { accountBalances, createLedgerAccount, ensureBooks, money, updateLedgerAccount } from "@setra/engine";
+import { accountBalances, createLedgerAccount, ensureBooks, money, seedChart, updateLedgerAccount } from "@setra/engine";
 import { createLedgerAccountInput, ledgerAccountListQuery, updateLedgerAccountInput } from "@setra/schemas";
 import { notFound } from "../../lib/errors";
 import { idParam, route } from "../../lib/route";
@@ -18,6 +18,8 @@ export function ledgerAccountRoutes(app: FastifyInstance) {
     handler: ({ tx, query, organizationId, environment }) =>
       tx(async (c) => {
         await ensureBooks(c, organizationId, environment);
+        // Workspaces set up before an account joined the standard chart get it here (never duplicated).
+        await seedChart(c, organizationId, environment);
         const balances = await accountBalances(c, organizationId, environment, { to: query.as_of ?? null });
         const meta = new Map(((await c.query("SELECT id, description, archived_at, system_key, wallet_id, asset_id FROM ledger_accounts WHERE organization_id = $1 AND environment = $2", [organizationId, environment])).rows as Row[]).map((r) => [r.id, r]));
         return {

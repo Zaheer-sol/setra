@@ -34,7 +34,7 @@ export async function emitFinancialEvent(client: Client, input: EmitInput): Prom
   const observation = (await client.query("SELECT * FROM source_observations WHERE id = $1", [payment.observation_id])).rows[0] as Row;
   const invoice = payment.invoice_id ? ((await client.query("SELECT * FROM invoices WHERE id = $1", [payment.invoice_id])).rows[0] as Row) : null;
   const customerId = invoice?.customer_id ?? payment.customer_id ?? null;
-  const customer = customerId ? ((await client.query("SELECT id, name FROM customers WHERE id = $1", [customerId])).rows[0] as Row) : null;
+  const customer = customerId ? ((await client.query("SELECT id, name, external_ref FROM customers WHERE id = $1", [customerId])).rows[0] as Row) : null;
   const decision = input.decisionId ? ((await client.query("SELECT * FROM match_decisions WHERE id = $1", [input.decisionId])).rows[0] as Row) : null;
   const resolution = input.resolutionId ? ((await client.query("SELECT * FROM resolutions WHERE id = $1", [input.resolutionId])).rows[0] as Row) : null;
   // While a payment is still confirming, the invoice it provisionally matched (never used for money).
@@ -58,11 +58,14 @@ export async function emitFinancialEvent(client: Client, input: EmitInput): Prom
     status: input.type === "PAYMENT_OBSERVED" ? "pending" : "confirmed",
     occurred_at: occurredAt.toISOString(),
     created_at: createdAt.toISOString(),
-    customer: customer ? { id: customer.id, name: customer.name } : null,
+    customer: customer ? { id: customer.id, name: customer.name, external_ref: customer.external_ref ?? null } : null,
     invoice: invoice
       ? {
           id: invoice.id,
           number: invoice.number,
+          // The merchant's own order ID and metadata, so their system can act on the event directly.
+          external_id: invoice.external_id ?? null,
+          metadata: invoice.metadata ?? {},
           title: invoice.title ?? null,
           purpose: invoice.purpose ?? null,
           status: invoice.status,

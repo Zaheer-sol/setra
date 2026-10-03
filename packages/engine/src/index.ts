@@ -10,6 +10,8 @@ export * from "./housekeeping";
 export * from "./wallets";
 export * from "./customers";
 export * from "./invoices";
+export * from "./orders";
+export * from "./order-sources";
 export * from "./payment-intents";
 export * from "./workspaces";
 export * from "./execution-events";

@@ -26,7 +26,7 @@ export const DOCS: DocPage[] = [
         <p>Test keys operate on <strong>Monad testnet (chain 10143)</strong> and can run simulated payments. Live keys (<code>sk_live_</code>) operate on <strong>Monad mainnet (chain 143)</strong>.</p>
         <h2>2. Create a customer</h2>
         <Code>{`
-curl https://api.setra.dev/v1/customers \\
+curl https://setra.up.railway.app/api/v1/customers \\
   -H "Authorization: Bearer $SETRA_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{ "name": "Acme Ltd", "email": "ap@acme.test",
@@ -35,7 +35,7 @@ curl https://api.setra.dev/v1/customers \\
         <p>Linking the wallet a customer pays from lets Setra attribute their payments with certainty, including partial payments.</p>
         <h2>3. Create an invoice</h2>
         <Code>{`
-curl https://api.setra.dev/v1/invoices \\
+curl https://setra.up.railway.app/api/v1/invoices \\
   -H "Authorization: Bearer $SETRA_KEY" \\
   -H "Idempotency-Key: order-8812" \\
   -H "Content-Type: application/json" \\
@@ -54,7 +54,7 @@ curl https://api.setra.dev/v1/invoices \\
   "asset": { "symbol": "USDC", "decimals": 6, "address": "0x534b2f3a21130d7a60830c2df862319e593943a3" },
   "network": "monad",
   "chain_id": 10143,
-  "payment_url": "https://app.setra.dev/pay/9c2V…",
+  "payment_url": "https://setra.up.railway.app/pay/9c2V…",
   "livemode": false
 }
 `}</Code>
@@ -63,7 +63,7 @@ curl https://api.setra.dev/v1/invoices \\
         <h2>5. Pay it</h2>
         <p>Open <code>payment_url</code> and pay with testnet USDC from any wallet (Circle&rsquo;s faucet at faucet.circle.com), or run a simulation through the same pipeline:</p>
         <Code>{`
-curl https://api.setra.dev/v1/test/payments \\
+curl https://setra.up.railway.app/api/v1/test/payments \\
   -H "Authorization: Bearer $SETRA_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{ "scenario": "exact", "invoice_id": "inv_01J9Z3…" }'
@@ -236,6 +236,49 @@ curl https://api.setra.dev/v1/test/payments \\
 }
 `}</Code>
         <p>Schemas are versioned. Additive fields may appear at any time; breaking changes increment <code>event_version</code>.</p>
+      </>
+    )
+  },
+  {
+    slug: "orders",
+    group: "Integrate",
+    title: "Orders from your systems",
+    lead: "Your store, checkout or backend tells Setra about each order. Setra matches the payment when it reaches your wallet, books it, and reports back with your own order ID. Nobody creates invoices by hand.",
+    body: (
+      <>
+        <h2>From your backend</h2>
+        <p>Send an order when it's placed, and again whenever it changes. It's keyed by your own order ID, so sending the same order twice changes nothing.</p>
+        <Code>{`
+curl https://setra.up.railway.app/api/v1/orders \\
+  -H "Authorization: Bearer sk_test_…" \\
+  -H "Idempotency-Key: order-9281" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "external_id": "9281",
+    "amount": "1000.00",
+    "customer": { "external_ref": "alice_123", "name": "Alice", "email": "alice@example.com" },
+    "metadata": { "cart": "c_77" }
+  }'
+`}</Code>
+        <table>
+          <tbody>
+            <tr><td><code>external_id</code></td><td>Your order ID. Required.</td></tr>
+            <tr><td><code>customer</code></td><td>Found by <code>external_ref</code> (your customer ID) or <code>email</code>, and created the first time. Or pass <code>customer_id</code>.</td></tr>
+            <tr><td><code>amount</code> or <code>line_items</code></td><td>What you expect to be paid, as a decimal string.</td></tr>
+            <tr><td><code>status</code></td><td><code>&quot;cancelled&quot;</code> cancels the order.</td></tr>
+            <tr><td><code>number</code>, <code>title</code>, <code>due_at</code>, <code>metadata</code></td><td>Optional. Metadata comes back in every event about the order.</td></tr>
+          </tbody>
+        </table>
+        <p>The response says what happened: <code>created</code>, <code>unchanged</code>, <code>updated</code> (a new amount replaces the order while nothing has been paid) or <code>cancelled</code>. Changing the amount of an order that already has a payment is refused with <code>order_has_payments</code>.</p>
+        <h2>From a connected source</h2>
+        <p>Under Developers, then Orders, connect a source once. Setra gives it an address to post orders to.</p>
+        <ul>
+          <li><strong>Shopify</strong>: add order creation, update and cancellation webhooks in JSON with that address. Setra checks Shopify&apos;s signature. Orders waiting for payment in USD become expected payments; orders Shopify already collected are skipped.</li>
+          <li><strong>Your checkout or backend</strong>: post the same JSON as the orders API, signed like Setra&apos;s webhooks (<code>X-Setra-Timestamp</code>, <code>X-Setra-Signature</code>), with <code>X-Setra-Delivery-Id</code> so retries are recognised.</li>
+        </ul>
+        <p>Every delivery is recorded once, with what Setra did with it, on the source&apos;s activity list.</p>
+        <h2>When the payment arrives</h2>
+        <p>The <code>payment.matched</code> event includes <code>invoice.external_id</code>, <code>invoice.metadata</code> and <code>customer.external_ref</code>, so your system can mark its order paid without a lookup. A payment that doesn&apos;t fit (too little, too much, or nobody&apos;s) goes to review and is never counted as revenue on its own.</p>
       </>
     )
   },
