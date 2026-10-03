@@ -123,7 +123,7 @@ async function deliverOne(organizationId: string, deliveryId: string, options: D
   const started = Date.now();
   const headers: Record<string, string> = {
     "content-type": "application/json",
-    "user-agent": "Setra-Webhooks/1.0 (+https://setra.dev/docs/webhooks)",
+    "user-agent": "Setra-Webhooks/1.0 (+https://setra.up.railway.app/docs/webhooks)",
     "x-setra-event-id": String(delivery.payload?.id ?? ""),
     "x-setra-event-type": delivery.event_type,
     "x-setra-delivery-id": delivery.id,

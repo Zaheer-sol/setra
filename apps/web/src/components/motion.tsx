@@ -137,34 +137,6 @@ export function ScrollLift({ children, className, from = 16 }: { children: React
   );
 }
 
-/** Text whose words brighten one by one as it scrolls through the viewport. */
-export function ScrollWords({ text, className, highlight }: { text: string; className?: string; highlight?: string }) {
-  const ref = useRef<HTMLParagraphElement>(null);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start 85%", "end 45%"] });
-  const words = text.split(" ");
-  const hl = new Set((highlight ?? "").split(" ").filter(Boolean));
-  return (
-    <p ref={ref} className={className}>
-      {words.map((w, i) => (
-        <Word key={i} progress={scrollYProgress} range={[i / words.length, (i + 1) / words.length]} highlight={hl.has(w)}>
-          {w}
-        </Word>
-      ))}
-    </p>
-  );
-}
-
-function Word({ children, progress, range, highlight }: { children: string; progress: MotionValue<number>; range: [number, number]; highlight: boolean }) {
-  const opacity = useTransform(progress, range, [0.18, 1]);
-  return (
-    <>
-      <motion.span style={{ opacity }} className={highlight ? "bg-gradient-to-r from-[#2997ff] via-[#a78bfa] to-[#f472b6] bg-clip-text text-transparent" : undefined}>
-        {children}
-      </motion.span>{" "}
-    </>
-  );
-}
-
 /**
  * A number that counts up to its value when first visible, and glides to new values after that.
  * `format` renders the in-between values (money, counts), so the final text is exactly `format(value)`.
@@ -242,29 +214,6 @@ export function PageTransition({ children, className }: { children: ReactNode; c
     <motion.div className={className} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: EASE }}>
       {children}
     </motion.div>
-  );
-}
-
-/** Two soft, slowly drifting colour fields behind a hero. Decorative; hidden from assistive tech. */
-export function Aurora({ className }: { className?: string }) {
-  return (
-    <div aria-hidden="true" className={cn("pointer-events-none absolute inset-0 -z-10 overflow-hidden", className)}>
-      <motion.div
-        className="absolute top-[-18%] left-[8%] size-[46vw] max-w-[640px] rounded-full bg-[#2997ff]/25 blur-[110px] dark:bg-[#0a84ff]/30"
-        animate={{ x: [0, 60, -20, 0], y: [0, 30, 60, 0], scale: [1, 1.08, 0.96, 1] }}
-        transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="absolute top-[4%] right-[4%] size-[40vw] max-w-[560px] rounded-full bg-[#a78bfa]/25 blur-[110px] dark:bg-[#8f7dff]/30"
-        animate={{ x: [0, -50, 20, 0], y: [0, 50, -10, 0], scale: [1, 0.94, 1.06, 1] }}
-        transition={{ duration: 26, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <motion.div
-        className="absolute top-[40%] left-[38%] size-[30vw] max-w-[420px] rounded-full bg-[#f472b6]/15 blur-[120px]"
-        animate={{ x: [0, 40, -30, 0], y: [0, -30, 20, 0] }}
-        transition={{ duration: 30, repeat: Infinity, ease: "easeInOut" }}
-      />
-    </div>
   );
 }
 

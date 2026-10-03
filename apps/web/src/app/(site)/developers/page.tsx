@@ -71,7 +71,7 @@ app.post("/webhooks/setra", raw(), (req, res) => {
             ["Financial events", "PAYMENT_OBSERVED, PAYMENT_MATCHED, PARTIALLY_PAID, OVERPAID, UNKNOWN_PAYMENT, PAYMENT_REVERSED, each with evidence and a rule version."],
             ["Signed webhooks", "HMAC-SHA256 over timestamp and body, retries with backoff, every attempt stored, one-click replay, zero-downtime secret rotation."],
             ["Payment intents", "An optional Monad contract that puts a machine-readable reference inside the payment transaction. Non-custodial, no admin keys."],
-            ["Serious test mode", "sk_test_ keys run on Monad testnet, plus simulated exact, partial, over, unknown, wrong-token and reorg scenarios through the real pipeline."]
+            ["Test mode on the real pipeline", "sk_test_ keys run on Monad testnet, and you can simulate exact, partial, over, unknown, wrong-token and reorg scenarios through the same pipeline as live payments."]
           ].map(([t, d]) => (
             <Tile key={t} title={t}>
               {d}

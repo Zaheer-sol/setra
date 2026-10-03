@@ -46,7 +46,7 @@ export class Setra {
   constructor(options: SetraOptions) {
     if (!/^sk_(test|live)_/.test(options.apiKey)) throw new Error("Setra: apiKey must start with sk_test_ or sk_live_");
     this.apiKey = options.apiKey;
-    this.baseUrl = (options.baseUrl ?? "https://api.setra.dev").replace(/\/$/, "");
+    this.baseUrl = (options.baseUrl ?? "https://setra.up.railway.app/api").replace(/\/$/, "");
     this.fetchImpl = options.fetch ?? fetch;
     this.timeoutMs = options.timeoutMs ?? 30_000;
   }

@@ -18,45 +18,45 @@ control to receive (your "merchant" wallet).
 Sign in as `owner@acme.test` / `SetraDemo!2026`. The workspace is labelled as a demo; its history is
 simulated in test mode.
 
-## 1. What Setra is (20 s) — Overview
+## 1. What Setra is (20 s): Overview
 
 "Businesses receive stablecoins on Monad. Setra tells them what each payment means." Point at the
 metrics (received, matched, needs attention, unknown), recent activity and the needs-attention queue.
-The top bar shows **Live on Monad Testnet** — the worker's real cursor.
+The top bar shows **Live on Monad Testnet**, the worker's real cursor.
 
-## 2. Create an invoice (25 s) — Wallets → Invoices → New invoice
+## 2. Create an invoice (25 s): Wallets → Invoices → New invoice
 
 - Wallets → **Add wallet**: paste your merchant testnet address (USDC, Monad Testnet). Status goes
   Starting → Monitoring within seconds.
 - Invoices → **New invoice**: Acme Ltd, `$2.00` (testnet amounts can be small), Monad + USDC are
   preselected, choose your new wallet. Create → open the invoice.
 
-## 3. Customer pays on Monad (40 s) — Open payment page
+## 3. Customer pays on Monad (40 s): Open payment page
 
 - **Open payment page**: merchant, invoice, amount, USDC on Monad Testnet, wallet checkout or manual
   send with QR.
 - **Connect wallet → Pay 2.00 USDC**. The wallet switches to Monad Testnet and sends a real USDC
   transfer to your merchant address.
-- Within about a second the page shows **Payment detected — confirming**, then **Payment received**
+- Within about a second the page shows **Payment detected, confirming**, then **Payment received**
   with a link to the real transaction on the Monad explorer.
 
-## 4. What Setra concluded (40 s) — Invoice → Payment
+## 4. What Setra concluded (40 s): Invoice → Payment
 
 - The invoice is **Paid**; the reconciliation ledger shows one automatic allocation.
-- Open the payment: **Why this payment was matched** — supported network, correct receiving wallet,
+- Open the payment: **Why this payment was matched**: supported network, correct receiving wallet,
   approved asset, exact amount, valid window, one deterministic candidate, rule `match-v1.0`.
-- **Evidence**: block number, block hash, transaction hash, log index, `Finalized` — straight from
+- **Evidence**: block number, block hash, transaction hash, log index, `Finalized`, straight from
   Monad. **History**: observed at tip → finalized → payment detected → payment matched.
 
 ## 5. Webhook + API (20 s)
 
-- Terminal: the receiver printed `✓ payment.matched INV-… Acme Ltd 2.00 USDC` — signature verified.
+- Terminal: the receiver printed `✓ payment.matched INV-… Acme Ltd 2.00 USDC`, signature verified.
 - Developers → Webhooks: delivery `200 OK · 42ms · attempt 1`; open it to see headers and payload;
   **Replay**.
 
-## 6. When it doesn't match (35 s) — Needs review
+## 6. When it doesn't match (35 s): Needs review
 
-- Open **$740.00 could belong to more than one invoice**: two open $740 invoices, an unknown sender —
+- Open **$740.00 could belong to more than one invoice**: two open $740 invoices, an unknown sender:
   Setra refuses to guess and shows both candidates with reasons. Assign it to INV-2043 with a reason;
   the decision and the original ambiguity are both kept.
 - Point at **Partial payment on INV-2042** ($1,500 of $2,000, $500 remaining), **Overpayment on

@@ -50,7 +50,7 @@ export default function ProductPage() {
             <Seti mood="welcome" size={112} priority className="mb-5 lg:hidden" />
             <h1 className="max-w-[860px] text-[clamp(2.5rem,5vw,4rem)] leading-[1.05] font-bold tracking-[-0.03em] text-balance">Invoices, payment matching and books for USDC on Monad.</h1>
             <p className="mt-5 max-w-[680px] text-[clamp(1.1875rem,1.6vw,1.375rem)] leading-[1.42] tracking-[-0.015em] text-muted-foreground">
-              Setra sits between Monad and your business: it observes where money moved, decides what it means, and gives you a place to operate it, without custody and without spreadsheets.
+              Setra watches your wallets on Monad, works out which invoice each payment is for, and keeps your books from it. It never holds your money, and you don't need a spreadsheet.
             </p>
             <div className="mt-8">
               <Button asChild size="lg">
@@ -66,7 +66,7 @@ export default function ProductPage() {
             nodes={[
               { title: "Monad", detail: "where the money moves", tone: "monad" },
               { title: "Payment", detail: "2,000 USDC · finalized" },
-              { title: "Setra", detail: "understands the money", tone: "dark" },
+              { title: "Setra", detail: "matches it and books it", tone: "dark" },
               { title: "Customer", detail: "Acme Ltd" },
               { title: "Invoice", detail: "INV-2041" },
               { title: "Financial state", detail: "Paid" },
@@ -98,7 +98,7 @@ export default function ProductPage() {
               <Seti mood="attention" size={132} className="mb-4" />
               <h2 className="text-[clamp(2rem,4vw,3rem)] font-bold tracking-[-0.03em]">What Setra doesn&apos;t do</h2>
               <p className="mx-auto mt-3 max-w-[680px] text-[1.0625rem] text-muted-foreground">
-                Setra isn&apos;t a bank, an exchange, a custodian or a general ledger. It never holds funds, never trades, and doesn&apos;t replace your accounting system, it gives it clean, verified payment records.
+                Setra isn&apos;t a bank, an exchange or a custodian. It never holds funds and never trades. It keeps a full double-entry ledger, and if your accountant works in QuickBooks or Xero, the books export straight into them.
               </p>
             </div>
           </Reveal>

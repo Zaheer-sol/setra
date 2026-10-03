@@ -34,7 +34,7 @@ const SECTIONS = [
     points: [
       "Every delivery is signed with HMAC-SHA256 over the timestamp and raw body.",
       "Receivers reject stale timestamps to prevent replay; secrets rotate without downtime.",
-      "Delivery status reflects real HTTP attempts, every request and response is kept."
+      "Delivery status reflects real HTTP attempts, and every request and response is kept."
     ]
   },
   {

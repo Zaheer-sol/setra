@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/app-ui";
 import { AuthAsideVisual } from "@/components/payment-visual";
-import { Aurora, Float, Tilt } from "@/components/motion";
+import { Float, Tilt } from "@/components/motion";
 import { Seti } from "@/components/seti";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
@@ -21,7 +21,6 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <p className="text-xs text-muted-foreground">Non-custodial. Setra never asks for private keys or seed phrases.</p>
       </div>
       <aside className="relative isolate flex flex-col justify-between overflow-hidden bg-black p-14 text-[#f5f5f7] max-md:hidden dark:shadow-[inset_0.5px_0_0_rgba(255,255,255,0.12)]" aria-hidden="true">
-        <Aurora className="z-0 opacity-90" />
         <blockquote className="relative m-0 max-w-[520px] text-[2rem] leading-[1.18] font-semibold tracking-[-0.03em]">Send an invoice, get paid in USDC on Monad, and find it already in your books.</blockquote>
         <div className="relative flex items-end gap-2">
           <Float amplitude={10} duration={9}>

@@ -4,7 +4,7 @@ import { HeroVisual } from "@/components/payment-visual";
 import { Seti } from "@/components/seti";
 import { Badge, ChainMark, CodeBlock } from "@/components/app-ui";
 import { Bullet, Eyebrow, Feature, InlineCode, SectionHead, TextArrow, section, wrap } from "@/components/marketing";
-import { Aurora, Float, Pop, Reveal, ScrollLift, ScrollWords, SlideIn, Stagger, StaggerItem, Tilt } from "@/components/motion";
+import { Float, Pop, Reveal, ScrollLift, SlideIn, Stagger, StaggerItem, Tilt } from "@/components/motion";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +12,6 @@ export default function HomePage() {
   return (
     <>
       <section className="relative isolate overflow-hidden pt-22 pb-28 text-center max-md:pt-14 max-md:pb-18">
-        <Aurora className="bottom-auto h-[760px]" />
         <Stagger onView={false} gap={0.09} delay={0.05} className={wrap}>
           <StaggerItem>
             <Eyebrow>Invoices, payments and books for businesses paid in USDC</Eyebrow>
@@ -61,11 +60,9 @@ export default function HomePage() {
 
       <section className="bg-black py-30 text-[#f5f5f7] max-md:py-20 dark:shadow-[inset_0_0.5px_0_rgba(255,255,255,0.12),inset_0_-0.5px_0_rgba(255,255,255,0.12)]">
         <div className={wrap}>
-          <ScrollWords
-            className="mx-auto max-w-[980px] text-center text-[clamp(1.875rem,4vw,3.25rem)] leading-[1.1] font-semibold tracking-[-0.03em] text-balance"
-            text="A block explorer shows that 2,000 USDC moved. Setra shows that Acme paid invoice INV-2041 and that it is in your books."
-            highlight="Setra shows that Acme paid invoice INV-2041 and that it is in your books."
-          />
+          <p className="mx-auto max-w-[980px] text-center text-[clamp(1.875rem,4vw,3.25rem)] leading-[1.1] font-semibold tracking-[-0.03em] text-balance">
+            <span className="text-[#86868b]">A block explorer shows that 2,000 USDC moved.</span> Setra shows that Acme paid invoice INV-2041 and that it is in your books.
+          </p>
         </div>
       </section>
 
@@ -222,7 +219,7 @@ export default function HomePage() {
           </Reveal>
           <ScrollLift from={12}>
             <Tilt max={4} className="rounded-[28px]">
-              <div className="rounded-[28px] bg-black bg-[radial-gradient(520px_320px_at_100%_0%,rgba(124,99,245,0.35),transparent_65%)] p-9 text-[#f5f5f7] shadow-overlay max-md:p-6 dark:shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.12)]">
+              <div className="rounded-[28px] bg-black p-9 text-[#f5f5f7] shadow-overlay max-md:p-6 dark:shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.12)]">
                 <div className="flex items-center gap-2.5">
                   <ChainMark className="size-[22px] rounded-[7px]" />
                   <strong className="font-semibold">A payment on Monad, through Setra</strong>
@@ -245,17 +242,9 @@ export default function HomePage() {
                     </StaggerItem>
                   ))}
                 </Stagger>
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
-                  {[
-                    ["1.8 s", "detected to paid, Monad mainnet"],
-                    ["0", "customer funds held by Setra"],
-                    ["1", "ledger for invoices, bills and reports"]
-                  ].map(([b, l]) => (
-                    <div key={l} className="rounded-2xl bg-white/7 p-4">
-                      <b className="block text-[1.75rem] font-semibold tracking-[-0.03em]">{b}</b>
-                      <span className="text-xs text-[#a1a1a6]">{l}</span>
-                    </div>
-                  ))}
+                <div className="mt-5 flex items-baseline gap-4 rounded-2xl bg-white/7 p-4">
+                  <b className="shrink-0 text-[1.75rem] font-semibold tracking-[-0.03em] whitespace-nowrap">1.8 s</b>
+                  <span className="text-xs text-[#a1a1a6]">from detected to paid, averaged over 34 real USDC transfers on Monad mainnet (a read-only test)</span>
                 </div>
               </div>
             </Tilt>
@@ -322,7 +311,6 @@ x-setra-signature: v1=6f1c…a09e
         <div className={wrap}>
           <Reveal y={40}>
             <div className="relative isolate overflow-hidden rounded-[32px] bg-card px-14 py-20 text-center text-card-foreground max-md:px-5 max-md:py-9">
-              <Aurora className="opacity-60" />
               <Seti mood="success" size={124} className="mb-4" />
               <h2 className="text-[clamp(2rem,4vw,3rem)] font-bold tracking-[-0.03em]">Try it on Monad testnet.</h2>
               <p className="mt-3.5 text-[clamp(1.0625rem,1.3vw,1.25rem)] tracking-[-0.012em] text-muted-foreground">Create a workspace, send yourself an invoice and pay it with test USDC. It takes about five minutes, and no real money moves.</p>
