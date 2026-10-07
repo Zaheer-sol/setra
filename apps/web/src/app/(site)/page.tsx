@@ -21,13 +21,13 @@ export default function HomePage() {
           </StaggerItem>
           <StaggerItem>
             <p className="mx-auto mt-[22px] max-w-[680px] text-[clamp(1.1875rem,1.6vw,1.4375rem)] leading-[1.42] tracking-[-0.015em] text-pretty text-muted-foreground">
-              Send an invoice and your customer pays in USDC on Monad. About two seconds later, Setra has matched the payment to the invoice and posted it to your books. The money goes straight to your own wallet.
+              Keep the wallet you already use. When a customer pays in USDC on Monad, Setra works out who paid and for which invoice or order, and about two seconds later it's in your books. The money goes straight to your own wallet.
             </p>
           </StaggerItem>
           <StaggerItem>
             <div className="mt-8 flex flex-wrap items-center justify-center gap-7 max-md:gap-5">
               <Button asChild size="lg">
-                <Link href="/signup">Start your workspace</Link>
+                <Link href="/signup">Create your workspace</Link>
               </Button>
               <TextArrow href="#how">See how it works</TextArrow>
             </div>
@@ -70,16 +70,16 @@ export default function HomePage() {
         <div className={wrap}>
           <Reveal>
             <SectionHead kicker="How it works" title="From a wallet address to a full set of books.">
-              You can start with the wallet you already use. Setra reads its activity, and you send invoices only when you want to.
+              Start with the wallet you already use. Setra reads its activity. Send invoices, or let your store send its orders, only when you want to.
             </SectionHead>
           </Reveal>
           <Stagger className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
             {[
-              ["Add your wallet", "Paste a public Monad address. Setra never asks for keys and never holds your funds."],
-              ["Get paid", "Customers pay from an invoice link, or send USDC to your address the way they already do."],
-              ["Match", "Each payment is matched to its invoice by a payment reference, a known customer wallet or an exact amount. Anything uncertain waits for you."],
-              ["Book", "Matched payments post to a double-entry ledger. Money nobody has claimed is kept apart from revenue until you say what it was."],
-              ["Report", "Profit and loss, balance sheet and cash flow, with each figure linked to the entries and transactions behind it."]
+              ["Connect", "Add a public Monad address. Setra only watches it. It never asks for keys and can't move your money."],
+              ["Collect", "Send a payment request, connect your checkout, or keep accepting USDC at your existing address."],
+              ["Match", "Setra uses the payment reference, known customer wallets, the amount and the timing to work out what each payment is for. Anything uncertain waits for you."],
+              ["Book", "Matched payments post to a double-entry ledger. Money nobody has claimed stays out of revenue until you say what it was."],
+              ["Close", "Review profit and loss, balance sheet and cash flow. Every figure links back to the entries and transactions behind it."]
             ].map(([t, d], i) => (
               <StaggerItem key={t} className="h-full">
                 <Tilt max={5} className="h-full rounded-[22px]">
@@ -98,23 +98,23 @@ export default function HomePage() {
       <section className={cn(section, "pt-0")}>
         <div className={wrap}>
           <Reveal>
-            <SectionHead kicker="Spending too" title="Know what you earned and what you owe.">
-              Outgoing USDC gets the same care as incoming. Record a vendor bill or an expense, link the transfer that paid it, and it lands in the same ledger as your invoices.
+            <SectionHead kicker="Incoming and outgoing" title="Know what you earned, spent and still owe.">
+              Record bills and expenses, then link the transfer that paid them. Money in and money out land in the same ledger.
             </SectionHead>
           </Reveal>
           <Stagger className="grid gap-4 md:grid-cols-3">
-            <StaggerItem><Feature icon={<FileSearch />} title="Bills and expenses" body="Record a bill, approve it, and link the transfer that paid it. Payments made off the chain can be entered by hand." /></StaggerItem>
+            <StaggerItem><Feature icon={<FileSearch />} title="Bills and expenses" body="Record what the business owes and what it has spent. Link the USDC transfer that paid it, or record a bank or card payment by hand." /></StaggerItem>
             <StaggerItem><Feature icon={<Scale />} title="Double-entry books" body="Posted entries stay on record. A mistake is fixed with a reversing entry, so the history shows what changed and who changed it." /></StaggerItem>
-            <StaggerItem><Feature icon={<CircleDollarSign />} title="Reports your accountant can check" body="Profit and loss, balance sheet and cash flow come from the same posted entries, and download as CSV or as a QuickBooks or Xero import." /></StaggerItem>
+            <StaggerItem><Feature icon={<CircleDollarSign />} title="Reports your accountant can check" body="Profit and loss, balance sheet and cash flow come from posted entries. Export them as CSV or in QuickBooks and Xero import layouts." /></StaggerItem>
           </Stagger>
-          <p className="mt-6 text-sm text-muted-foreground">Setra works with USD stablecoins today. It is not a bank feed or a tax-filing service, and it does not connect to card processors.</p>
+          <p className="mt-6 text-sm text-muted-foreground">Setra currently accounts for USD stablecoins. Bank feeds, card-processor connections and tax filing are outside the product today.</p>
         </div>
       </section>
 
       <section className={cn(section, "pt-0")}>
         <div className={wrap}>
           <Reveal>
-            <SectionHead kicker="What a payment looks like" title="The same transfer, read two ways." />
+            <SectionHead kicker="What a payment looks like" title="The chain records a transfer. Setra records what it meant." />
           </Reveal>
           <div className="grid items-center gap-5 lg:grid-cols-[1fr_auto_1fr]">
             <SlideIn from="left" className="h-full">
@@ -313,11 +313,11 @@ x-setra-signature: v1=6f1c…a09e
             <div className="relative isolate overflow-hidden rounded-[32px] bg-card px-14 py-20 text-center text-card-foreground max-md:px-5 max-md:py-9">
               <Seti mood="success" size={124} className="mb-4" />
               <h2 className="text-[clamp(2rem,4vw,3rem)] font-bold tracking-[-0.03em]">Try it on Monad testnet.</h2>
-              <p className="mt-3.5 text-[clamp(1.0625rem,1.3vw,1.25rem)] tracking-[-0.012em] text-muted-foreground">Create a workspace, send yourself an invoice and pay it with test USDC. It takes about five minutes, and no real money moves.</p>
+              <p className="mt-3.5 text-[clamp(1.0625rem,1.3vw,1.25rem)] tracking-[-0.012em] text-muted-foreground">Create a workspace, send yourself an invoice and pay it with test USDC. It takes about five minutes. Test mode is free, no card needed, and no real money moves.</p>
               <div className="mt-8 flex flex-wrap justify-center gap-2.5">
                 <Button asChild size="lg">
                   <Link href="/signup">
-                    Start your workspace <ArrowRight aria-hidden="true" />
+                    Create your workspace <ArrowRight aria-hidden="true" />
                   </Link>
                 </Button>
                 <Button asChild size="lg" variant="secondary">

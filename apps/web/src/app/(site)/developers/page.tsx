@@ -5,7 +5,7 @@ import { CodeBlock } from "@/components/app-ui";
 import { Flow, PageHero, Tile, wrap } from "@/components/marketing";
 import { Button } from "@/components/ui/button";
 
-export const metadata: Metadata = { title: "Developers", description: "Integrate Setra into your payment flow: invoices, financial events, webhooks and payment intents on Monad." };
+export const metadata: Metadata = { title: "Developers", description: "Connect your checkout or backend to Setra with idempotent APIs, versioned financial events and signed webhooks on Monad." };
 
 export default function DevelopersMarketingPage() {
   return (
@@ -26,7 +26,7 @@ export default function DevelopersMarketingPage() {
           </>
         }
       >
-        Create payment requests from your backend, let customers pay USDC on Monad, and receive a signed event the moment the payment is final and matched.
+        Send Setra an invoice or order from your backend. When USDC reaches your wallet on Monad, Setra identifies it, updates the books and sends your system a signed financial event.
       </PageHero>
       <section className="py-16">
         <div className={`${wrap} grid items-start gap-14 lg:grid-cols-2`}>

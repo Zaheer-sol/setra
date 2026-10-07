@@ -55,7 +55,7 @@ function PaymentsView() {
     <div>
       <PageHeader
         title="Payments"
-        description="Every stablecoin payment that reached your wallets, what Setra concluded, and why."
+        description="Every stablecoin payment received by your wallets, the invoice or order it paid, and why Setra decided that."
         actions={
           <Button variant="secondary" icon={<Download aria-hidden="true" />} onClick={() => (window.location.href = `/api/v1/exports/payments.csv${qs(filters)}`)}>
             Export CSV

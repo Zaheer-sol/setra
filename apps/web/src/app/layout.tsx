@@ -19,7 +19,7 @@ const mono = localFont({
 
 export const metadata: Metadata = {
   title: { default: "Setra · Get paid in stablecoins. Your books are already done.", template: "%s · Setra" },
-  description: "Invoices and bookkeeping for businesses paid in USDC on Monad. About two seconds after a payment lands, Setra matches it to its invoice and posts it to your books.",
+  description: "Invoices and bookkeeping for businesses paid in USDC on Monad. About two seconds after a payment lands, Setra matches it to its invoice or order and posts it to your books.",
   applicationName: "Setra",
   icons: { icon: "/favicon.svg" }
 };

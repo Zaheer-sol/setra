@@ -78,7 +78,7 @@ export function PaymentsTable({ rows, empty, compact = false }: { rows: PaymentR
       <>
         {empty ?? (
           <EmptyState icon={<ArrowDownLeft />} title="No payments yet">
-            Payments appear here the moment they reach one of your receiving wallets.
+            A payment appears here as soon as Setra detects it at one of your monitored addresses.
           </EmptyState>
         )}
       </>
@@ -229,7 +229,7 @@ export function InvoicesTable({ rows, empty }: { rows: InvoiceRow[]; empty?: Rea
       <>
         {empty ?? (
           <EmptyState icon={<Receipt />} title="No invoices">
-            Create an invoice to generate a hosted payment page your customer can pay in USDC on Monad.
+            Create an invoice to give your customer a hosted page for paying USDC on Monad.
           </EmptyState>
         )}
       </>
@@ -335,7 +335,8 @@ export function ExceptionsList({ rows, empty }: { rows: ExceptionRow[]; empty?: 
           <Link href={`/app/exceptions/${e.id}`} className="flex items-center justify-between gap-4 px-6 py-3.5 transition-colors hover:bg-muted/40 max-md:px-4">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2.5">
-                <ExceptionType type={e.type} />
+                {/* The badge only when the summary doesn't already say it ("Unknown payment of $5.00"). */}
+                {!e.summary.toLowerCase().startsWith(exceptionLabel(e.type).toLowerCase()) && <ExceptionType type={e.type} />}
                 <span className="font-semibold">{e.summary}</span>
               </div>
               <p className="mt-1 text-sm text-muted-foreground">

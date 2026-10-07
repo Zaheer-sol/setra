@@ -72,7 +72,7 @@ export async function buildServer(options: { logger?: boolean } = {}): Promise<F
         title: "Setra API",
         version: "2026-10-01",
         description:
-          "Stablecoin payment operations on Monad: invoices, payments, matching, exceptions, reconciliation, financial events and webhooks. Amounts are decimal strings. Test keys (sk_test_) operate on Monad testnet; live keys (sk_live_) on Monad mainnet."
+          "Invoices, payments and automatic books on Monad: customers, invoices, orders, payments, matching, books, reconciliation, financial events and webhooks. Amounts are decimal strings. Test keys (sk_test_) operate on Monad testnet; live keys (sk_live_) on Monad mainnet."
       },
       servers: [{ url: "/", description: "This server" }],
       components: {

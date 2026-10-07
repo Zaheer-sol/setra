@@ -1,12 +1,16 @@
 # Setra
 
-**Invoices, payments and automatic books for businesses paid in USDC on Monad.**
+**Get paid in stablecoins. Your books are already done.** Invoices, payments and automatic books for businesses paid in USDC on Monad.
 
-A business sends an invoice, the customer pays USDC on Monad straight to the business's own wallet,
-and about two seconds later Setra has matched the payment to the invoice and posted it to a
-double-entry ledger. When a month is closed, the business can publish it on Monad: a fingerprint of
-the books, the books themselves encrypted, and public statements, which anyone can check on a public
-verify page. Setra is non-custodial: it reads public addresses and never holds funds or keys.
+A stablecoin payment arrives as an amount and a wallet address. Someone still has to work out which
+customer sent it and which invoice it pays, then enter it in the books. Setra does that for businesses
+paid in USDC on Monad. About two seconds after a payment lands, it's matched to its invoice or order
+and posted to a double-entry ledger. Invoices can be created in Setra or sent by the business's own
+store or backend.
+
+Bills, expenses, reconciliation and reports come from the same ledger, and a closed month can be
+published on Monad so anyone can verify it. Setra reads public addresses only and never holds funds
+or keys.
 
 **Try it:** https://setra.up.railway.app (Monad testnet). Sign in with `owner@acme.test` /
 `SetraDemo!2026` (a test-mode demo workspace with simulated data), or create your own. Verify a published month at
@@ -20,7 +24,7 @@ to the explorer.
 | What | Evidence |
 |---|---|
 | **Setra's own contracts**, deployed from the team's wallet `0xEb58…3eF0` | [SetraPaymentIntent `0x1eF2…9B5c`](https://testnet.monadscan.com/address/0x1eF2Ca1b4426D7e942EAd749F4C7eF5580fd9B5c) ([deploy](https://testnet.monadscan.com/tx/0x9d0b0fc0ee845d080473bc6c38edcb105bf43beb01916d07702363803a02fe0e)) and [SetraBooksAttestation v2 `0xD4b8…8A73`](https://testnet.monadscan.com/address/0xD4b87CE59e2dcf5F597ea0EDf7dEC17c21D78a73) ([deploy](https://testnet.monadscan.com/tx/0x17c046200ad1f29bcfc25d9a0d294242f413fa46c1655101da87792eff394492)). v1 [`0xBc89…C9cA`](https://testnet.monadscan.com/address/0xBc89b80F680046E23e53b2650Ca574E96Fb5C9cA) is kept in [`contracts/deployments/monad-testnet.json`](contracts/deployments/monad-testnet.json). No owner, no admin, no funds held |
-| **A customer paying an invoice through the contract** | [`0x1113…5708`](https://testnet.monadscan.com/tx/0x11132718581db2df3628989467ca721968cd2c1be34d8d12a7e062b116cf5708): the hosted payment page created a payment intent, the wallet paid through `SetraPaymentIntent` (the invoice reference is inside the transaction), and the worker matched it to its invoice |
+| **A structured payment through the contract** | [`0x1113…5708`](https://testnet.monadscan.com/tx/0x11132718581db2df3628989467ca721968cd2c1be34d8d12a7e062b116cf5708): `SetraPaymentIntent` transferred 5 USDC directly to the merchant and emitted `PaymentIntentPaid` with the payment reference. The deployed transaction proves the contract path; deterministic invoice matching for this path is independently covered by the real-chain end-to-end suite below. |
 | **A direct USDC payment matched and booked** | [`0xb720…7207`](https://testnet.monadscan.com/tx/0xb7208e823382be10d1dcc390eef18f6a68499dad0788e095740c073c121d7207): seen at the chain tip, applied at finality 2.4 s later, matched to INV-2061; an identical second transfer was flagged as a possible duplicate ([`docs/monad.md`](docs/monad.md)) |
 | **A month of books attested on Monad** | [`0xd24e…2cef`](https://testnet.monadscan.com/tx/0xd24e95df8a40356023b03828e8881c5b4cae2286d5a255f9c3466b2b50f22cef): September 2026, 62 posted entries, fingerprint `0x95f4…8505`, signed by the business's wallet. [Check it on the verify page](https://setra.up.railway.app/verify?chain=10143&tx=0xd24e95df8a40356023b03828e8881c5b4cae2286d5a255f9c3466b2b50f22cef) |
 | **Finality-aware detection** | Payments show as detected at Monad's `latest` block and are applied only at `finalized` ([`packages/blockchain/src/adapter.ts`](packages/blockchain/src/adapter.ts), [`packages/engine/src/ingestion.ts`](packages/engine/src/ingestion.ts)). Detected to paid: **1.8 s on average on Monad mainnet**, read-only, 34 real USDC transfers, zero errors ([`docs/monad.md`](docs/monad.md)) |

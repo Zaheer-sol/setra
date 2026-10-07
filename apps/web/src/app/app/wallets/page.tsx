@@ -22,11 +22,11 @@ function WalletsView() {
     <div className="grid gap-6 [&>*]:min-w-0">
       <PageHeader
         title="Receiving wallets"
-        description="Public addresses Setra watches on Monad. Customers pay these wallets directly; your funds never pass through Setra."
+        description="Public Monad addresses Setra monitors for incoming and outgoing USDC. Funds and signing authority remain under your control."
         actions={can("wallets:write") && <Button variant="primary" icon={<Plus />} onClick={() => setAdding(true)}>Add wallet</Button>}
       />
-      <Alert tone="neutral" title="Non-custodial by design">
-        Setra only needs a public address. It will never ask for a private key, seed phrase or signing permission.
+      <Alert tone="neutral" title="Setra only needs the public address">
+        Keep seed phrases, private keys and signing credentials in your wallet. They never belong in Setra.
       </Alert>
       <Card>
         {error ? (
@@ -152,4 +152,3 @@ export default function WalletsPage() {
     </Suspense>
   );
 }
-

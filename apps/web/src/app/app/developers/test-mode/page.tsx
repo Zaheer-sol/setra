@@ -8,6 +8,7 @@ import { Alert, Button, Card, ChoiceCard, ChoiceGroup, Field, Input, PageHeader,
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { api, useApi, type ApiError } from "@/lib/api";
+import { money } from "@/lib/format";
 
 const SCENARIOS = [
   { key: "exact", title: "Exact payment", desc: "The full remaining amount. Matches deterministically and marks the invoice paid.", needsInvoice: true },
@@ -77,7 +78,7 @@ export default function TestModePage() {
                   { value: "", label: chosen.needsInvoice ? "Choose an invoice…" : "None" },
                   ...(invoices?.data
                     .filter((i) => (scenario === "duplicate" ? ["paid", "overpaid"].includes(i.status) : ["open", "partially_paid"].includes(i.status)))
-                    .map((i) => ({ value: i.id, label: `${i.number} · ${i.customer.name} · $${i.amount_remaining}` })) ?? [])
+                    .map((i) => ({ value: i.id, label: `${i.number} · ${i.customer.name} · ${money(i.amount_remaining)}` })) ?? [])
                 ]} />
               </Field>
               <Field label="Amount override" htmlFor="t-amount" optional hint="Decimal USD, e.g. 1500.00">

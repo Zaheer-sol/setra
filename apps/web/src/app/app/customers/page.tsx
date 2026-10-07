@@ -26,7 +26,7 @@ function CustomersView() {
     <div>
       <PageHeader
         title="Customers"
-        description="The businesses and people who pay you. Linking their wallets lets Setra recognize their payments, including partial ones."
+        description="The businesses and people who pay you. Link known sender addresses to improve matching and keep their invoices, payments and balances together."
         actions={can("customers:write") && <Button variant="primary" icon={<Plus />} onClick={() => setAdding(true)}>New customer</Button>}
       />
       <Card>

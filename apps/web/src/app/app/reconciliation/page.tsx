@@ -27,7 +27,7 @@ export default function ReconciliationPage() {
     <div className="grid gap-6 [&>*]:min-w-0">
       <PageHeader
         title="Reconciliation"
-        description="What you expected to receive, what actually arrived, what was matched, and what still needs a decision."
+        description="Compare what you invoiced with the money that reached your wallets. See what was applied, what remains outstanding and what needs a decision."
         actions={
           <>
             <div className="flex items-center rounded-[9px] bg-muted p-0.5" role="group" aria-label="Period">

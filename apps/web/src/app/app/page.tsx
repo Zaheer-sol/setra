@@ -56,7 +56,7 @@ export default function OverviewPage() {
           <h1 className="mt-1 text-[2.125rem] leading-[1.08] font-bold tracking-[-0.03em] max-md:text-[1.75rem]">
             {greeting()}, {firstName}.
           </h1>
-          <p className="mt-2 text-[1.0625rem] tracking-[-0.012em] text-muted-foreground">Here&apos;s where your money stands.</p>
+          <p className="mt-2 text-[1.0625rem] tracking-[-0.012em] text-muted-foreground">What came in, what remains open and what needs your decision.</p>
           </div>
         </div>
         <Segmented label="Period" value={period} onChange={setPeriod} options={PERIODS.map((p) => ({ value: p.key, label: p.label }))} />
@@ -112,7 +112,7 @@ export default function OverviewPage() {
         {!!data?.needs_attention.length && (
           <Card
             title="Needs review"
-            description="Payments Setra won't settle on its own"
+            description="Payments Setra cannot apply automatically"
             actions={
               <ButtonLink href="/app/exceptions" size="sm" variant="ghost">
                 Review <ArrowRight />
@@ -129,10 +129,10 @@ export default function OverviewPage() {
 
 function SetupChecklist({ setup }: { setup: Overview["setup"] }) {
   const steps = [
-    { done: setup.wallets > 0, title: "Add a receiving wallet", desc: "Setra watches it on Monad. Your funds stay under your control.", href: "/app/wallets?add=1", cta: "Add wallet" },
-    { done: setup.customers > 0, title: "Add a customer", desc: "Link their wallet addresses so partial payments can be matched safely.", href: "/app/customers?add=1", cta: "Add customer" },
-    { done: setup.invoices > 0, title: "Create your first invoice", desc: "Monad and USDC are selected by default.", href: "/app/invoices/new", cta: "Create invoice" },
-    { done: setup.payments > 0, title: "Receive a payment", desc: "Share the payment link. Setra detects, verifies and matches the payment.", href: "/app/invoices", cta: "View invoices" }
+    { done: setup.wallets > 0, title: "Connect a receiving wallet", desc: "Add its public Monad address so Setra can monitor incoming and outgoing USDC.", href: "/app/wallets?add=1", cta: "Connect wallet" },
+    { done: setup.customers > 0, title: "Add a customer", desc: "A known sender address gives Setra stronger evidence when matching payments.", href: "/app/customers?add=1", cta: "Add customer" },
+    { done: setup.invoices > 0, title: "Create your first invoice", desc: "Request USDC on Monad and get a hosted payment page to share.", href: "/app/invoices/new", cta: "Create invoice" },
+    { done: setup.payments > 0, title: "Follow a payment into the books", desc: "Inspect the match, blockchain evidence, journal entry and updated invoice.", href: "/app/invoices", cta: "View invoices" }
   ];
   const next = steps.find((s) => !s.done);
   return (
@@ -160,4 +160,3 @@ function SetupChecklist({ setup }: { setup: Overview["setup"] }) {
     </Card>
   );
 }
-

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CheckList, PageHero, wrap } from "@/components/marketing";
 import { Stagger, StaggerItem } from "@/components/motion";
 
-export const metadata: Metadata = { title: "Security", description: "How Setra protects merchants: non-custodial design, tenant isolation, signed webhooks and immutable evidence." };
+export const metadata: Metadata = { title: "Security", description: "How Setra protects financial records with non-custodial wallet monitoring, tenant isolation, signed webhooks and append-only evidence." };
 
 const SECTIONS = [
   {
@@ -17,7 +17,7 @@ const SECTIONS = [
     title: "Wallet monitoring",
     points: [
       "Tokens are identified by chain ID and contract address, never by symbol.",
-      "Payments are applied only after Monad finality; tip observations are provisional.",
+      "Payments are booked only after Monad finalizes the block. Before that, they show as detected and change nothing.",
       "If monitoring falls behind or a provider fails, Setra pauses and says so. It doesn't fill gaps with guesses."
     ]
   },
@@ -42,7 +42,7 @@ const SECTIONS = [
     points: [
       "Blockchain observations, match decisions, financial events, allocations and resolutions are append-only, enforced by the database.",
       "Manual resolutions record who, when, why, and the state before and after.",
-      "Reorgs and reversals are compensating entries; history is never rewritten."
+      "A chain reorganization or reversal adds a correcting entry. History is never rewritten."
     ]
   },
   {
@@ -58,7 +58,7 @@ const SECTIONS = [
 export default function SecurityPage() {
   return (
     <>
-      <PageHero title="How Setra keeps your records safe." mascot="resting">Setra handles payment records. The money itself goes straight from your customer to your wallet. This page explains how the records are protected and what Setra never has access to.</PageHero>
+      <PageHero title="Your wallets stay yours. Your records stay traceable." mascot="resting">Setra reads public wallet activity and stores the business record around it. Funds move directly between your customers and your wallets. Private keys and signing authority remain with you.</PageHero>
       <section className="pb-16">
         <Stagger className={`${wrap} grid gap-4 md:grid-cols-2`}>
           {SECTIONS.map((s) => (

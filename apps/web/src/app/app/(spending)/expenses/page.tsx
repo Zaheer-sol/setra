@@ -25,7 +25,7 @@ function ExpensesView() {
     <div className="grid gap-6 [&>*]:min-w-0">
       <PageHeader
         title="Expenses"
-        description="Spending that isn't a vendor bill: subscriptions, fees, one-off purchases. Paid from a wallet, link the transfer; paid another way, say from where."
+        description="Record subscriptions, fees and one-off purchases that are not vendor bills. Link a monitored transfer or record the account used to pay."
         actions={can("financials:write") && <Button variant="primary" icon={<Plus />} onClick={() => setAdding(true)}>Record expense</Button>}
       />
       {data && (

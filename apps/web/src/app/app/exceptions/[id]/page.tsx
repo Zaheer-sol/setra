@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Card as UICard } from "@/components/ui/card";
 import { api, useApi, type ApiError } from "@/lib/api";
-import { dateTime, timeAgo } from "@/lib/format";
+import { dateTime, money, timeAgo } from "@/lib/format";
 
 const ACTION_COPY: Record<string, { title: string; desc: string }> = {
   assign: { title: "Assign to an invoice", desc: "Apply this payment to the invoice it belongs to. Balances and webhooks update immediately." },
@@ -230,8 +230,8 @@ function ResolveForm({ exception: e, onDone }: { exception: any; onDone: () => v
                 required
                 placeholder="Choose an invoice…"
                 options={[
-                  { group: "Possible matches", options: e.candidates.map((c: any) => ({ value: c.invoice_id, label: `${c.number}${c.title ? `, ${c.title}` : ""} · ${c.customer_name} · $${c.amount_remaining} remaining` })) },
-                  { group: "Other open invoices", options: others.map((i: any) => ({ value: i.id, label: `${i.number}${i.title ? `, ${i.title}` : ""} · ${i.customer_name} · $${i.amount_remaining} remaining` })) }
+                  { group: "Possible matches", options: e.candidates.map((c: any) => ({ value: c.invoice_id, label: `${c.number}${c.title ? `, ${c.title}` : ""} · ${c.customer_name} · ${money(c.amount_remaining)} remaining` })) },
+                  { group: "Other open invoices", options: others.map((i: any) => ({ value: i.id, label: `${i.number}${i.title ? `, ${i.title}` : ""} · ${i.customer_name} · ${money(i.amount_remaining)} remaining` })) }
                 ]}
               />
             </Field>

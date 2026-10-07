@@ -59,7 +59,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
               <Link href="/login">Sign in</Link>
             </Button>
             <Button asChild size="sm">
-              <Link href="/signup">Start your workspace</Link>
+              <Link href="/signup">Create your workspace</Link>
             </Button>
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild>
@@ -89,7 +89,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
           <div className="max-lg:col-span-2">
             <Logo />
             <p className="mt-3 max-w-[320px] text-muted-foreground">Invoices, payment matching and bookkeeping for businesses paid in USDC on Monad.</p>
-            <p className="mt-3 max-w-[320px] text-muted-foreground">Setra is non-custodial software. It never holds funds or keys.</p>
+            <p className="mt-3 max-w-[320px] text-muted-foreground">Funds settle directly to your wallet. Setra only reads public activity.</p>
             <ThemeSwitcher className="mt-5" />
           </div>
           {FOOTER.map((col) => (

@@ -12,8 +12,8 @@ const PLANS = [
   {
     name: "Test",
     price: "Free",
-    note: "For development",
-    cta: "Start building",
+    note: "Try everything on testnet",
+    cta: "Start in test mode",
     href: "/signup",
     features: ["Unlimited test mode on Monad testnet", "Simulated payment scenarios", "API, webhooks and exports", "1 workspace"]
   },
@@ -22,7 +22,7 @@ const PLANS = [
     price: "$499",
     per: "/month",
     note: "Up to 1,000 payments / month",
-    cta: "Start building",
+    cta: "Create workspace",
     href: "/signup",
     featured: true,
     features: ["Live on Monad mainnet", "Matching, exceptions and reconciliation", "Signed webhooks with replay", "Up to 5 teammates", "Email support"]
@@ -49,8 +49,8 @@ const PLANS = [
 export default function PricingPage() {
   return (
     <>
-      <PageHero title="Simple pricing. No percentage of your payments." mascot="curious">
-        Setra charges for software, not for moving your money, because it never does. Build freely in test mode and pay when you go live.
+      <PageHero title="Pay for the software, never a share of your receipts." mascot="curious">
+        One monthly price, set by how many payments you receive. Customers pay your wallet directly, so no percentage comes off any payment. Test mode is free, and no card is needed to start.
       </PageHero>
       <section className="pb-16">
         <Stagger className={`${wrap} grid gap-4 sm:grid-cols-2 lg:grid-cols-4`}>
@@ -82,10 +82,9 @@ export default function PricingPage() {
             <div className="grid items-center gap-6 rounded-[32px] bg-card px-14 py-16 text-card-foreground max-md:px-5 max-md:py-9 md:grid-cols-[auto_1fr_auto]">
               <Seti mood="success" size={140} className="max-md:hidden" />
               <div>
-                <h2 className="text-[clamp(2rem,4vw,3rem)] font-bold tracking-[-0.03em]">Paid pilot: $1,000, fixed scope</h2>
+                <h2 className="text-[clamp(2rem,4vw,3rem)] font-bold tracking-[-0.03em]">Go live with a $1,000 fixed-scope pilot</h2>
                 <p className="mt-3.5 text-[1.0625rem] text-muted-foreground">
-                  Four weeks to go live on Monad with your real payment flow: integration support, a reconciliation review with your finance team, and a written go/no-go. Credited toward your first three months if you
-                  continue.
+                  Spend four weeks running a real payment flow on Monad with integration support and a reconciliation review for your finance team. You receive a written go-live assessment, and the pilot fee is credited toward your first three paid months.
                 </p>
               </div>
               <Button asChild size="lg">

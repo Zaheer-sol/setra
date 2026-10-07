@@ -16,7 +16,6 @@ type Row = Record<string, any>;
 export function publicRoutes(app: FastifyInstance) {
   const limit = { rateLimit: { max: 120, timeWindow: "1 minute" } };
   const tokenParam = z.object({ token: z.string().regex(/^[A-Za-z0-9_-]{16,64}$/) });
-
   const locate = async (token: string) => {
     const hit = (await withSystem((c) => c.query("SELECT id, organization_id FROM invoices WHERE public_token = $1", [token]))).rows[0];
     if (!hit) throw new ApiError(404, "not_found", "This payment link doesn't exist. Check the link or ask the sender for a new one.");

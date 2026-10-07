@@ -720,7 +720,7 @@ export async function openException(client: Client, payment: Row, type: Exceptio
   switch (type) {
     case "unknown_payment":
       summary = `Unknown payment of ${received}`;
-      detail = "We received this payment, but could not safely determine which customer or invoice it belongs to.";
+      detail = "Setra received this payment but couldn't safely tell which customer or invoice it belongs to.";
       recommended = "Assign it to the right invoice, or mark it as not applied if it isn't a customer payment.";
       break;
     case "ambiguous_match":

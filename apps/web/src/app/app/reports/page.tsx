@@ -34,7 +34,7 @@ function ReportsView() {
   };
   return (
     <div className="grid gap-6 [&>*]:min-w-0">
-      <PageHeader title="Reports" description="Financial statements built from one source: the posted entries in your ledger. Click any line to see the entries behind it." />
+      <PageHeader title="Reports" description="Financial statements built from posted journal entries. Open any line to inspect the accounts, entries and source records behind the total." />
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {REPORTS.map(({ slug, title, body, icon: Icon }) => {
           const [label, value] = figure[slug] ?? [];

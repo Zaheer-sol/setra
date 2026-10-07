@@ -42,7 +42,7 @@ the image inside the same `Seti` component without changing any page.
 | `focused` | Working on it | Developers page and Docs home, loading the workspace, onboarding wallet and invoice steps, the Assistant while it works, "add a wallet first" |
 | `success` | It worked | Onboarding finish ("ready to pay"), website call to action, the paid-pilot offer on Pricing |
 | `curious` | Let's look | Pricing hero ("which plan?"), search with no results, 404, empty developer lists, "Setra never guesses" on the website |
-| `attention` | Something needs you | "What Setra doesn't do" on Product, errors ("couldn't load this", the error page, service unavailable) |
+| `attention` | Something needs you | "Where Setra fits" on Product, errors ("couldn't load this", the error page, service unavailable) |
 | `resting` | All clear | Security page (calm, nothing to worry about), "Nothing needs attention", no notifications, an invoice waiting for payment |
 
 ## Guidelines

@@ -105,7 +105,7 @@ function MonthView() {
       </Metrics>
 
       <div className="grid gap-6 lg:grid-cols-2 [&>*]:min-w-0">
-        <Card title="Money that moved" description="Stablecoin in and out of your wallets this month. This isn't the same as revenue and expenses: transfers between your own wallets, loans and money still unidentified are part of it.">
+        <Card title="Money that moved" description="Stablecoin sent and received by your wallets this month. The total includes internal transfers, loans and unidentified activity, so it will not always equal revenue and expenses.">
           <dl className="grid gap-3 px-6 py-5 text-sm max-md:px-4">
             <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Received</dt><dd className="tabular text-right font-medium">{moved(s.stablecoin_received)}</dd></div>
             <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Sent</dt><dd className="tabular text-right font-medium">{moved(s.stablecoin_paid_out)}</dd></div>
@@ -115,8 +115,8 @@ function MonthView() {
         </Card>
         <Card title="Owed at the end of the month">
           <dl className="grid gap-3 px-6 py-5 text-sm max-md:px-4">
-            <div className="flex justify-between gap-4"><dt><Link href="/app/reports/receivables-aging" className="text-primary hover:underline">Customers owe you</Link></dt><dd className="tabular font-medium">{money(s.receivables)}</dd></div>
-            <div className="flex justify-between gap-4"><dt><Link href="/app/reports/payables-aging" className="text-primary hover:underline">You owe vendors</Link></dt><dd className="tabular font-medium">{money(s.payables)}</dd></div>
+            <div className="flex justify-between gap-4"><dt><Link href={`/app/reports/receivables?as_of=${data.as_of}`} className="text-primary hover:underline">Customers owe you</Link></dt><dd className="tabular font-medium">{money(s.receivables)}</dd></div>
+            <div className="flex justify-between gap-4"><dt><Link href={`/app/reports/payables?as_of=${data.as_of}`} className="text-primary hover:underline">You owe vendors</Link></dt><dd className="tabular font-medium">{money(s.payables)}</dd></div>
             <div className="flex justify-between gap-4"><dt><Link href="/app/exceptions" className="text-primary hover:underline">Payments waiting for review</Link></dt><dd className="tabular font-medium">{s.open_exceptions}</dd></div>
           </dl>
         </Card>

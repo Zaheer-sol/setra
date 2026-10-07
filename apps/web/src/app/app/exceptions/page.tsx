@@ -22,7 +22,7 @@ function ExceptionsView() {
 
   return (
     <div>
-      <PageHeader title="Needs review" description="Payments Setra received but won't apply on its own, each with the evidence and the options to resolve it. Nothing is ever erased; every decision is recorded." />
+      <PageHeader title="Needs review" description="Payments Setra cannot apply safely. Review the evidence, choose an action and record the reason. The original state remains in the history." />
       <Card>
         <NavTabs
           label="Exception status"

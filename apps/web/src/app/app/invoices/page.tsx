@@ -33,7 +33,7 @@ function InvoicesView() {
     <div>
       <PageHeader
         title="Invoices"
-        description="Payment requests with a hosted payment page. Customers pay stablecoins directly to your wallet."
+        description="Payment requests you create in Setra, and orders sent by your store or backend. Customers pay stablecoins directly to your wallet."
         actions={
           can("invoices:write") && (
             <ButtonLink href="/app/invoices/new" variant="primary" icon={<Plus />}>

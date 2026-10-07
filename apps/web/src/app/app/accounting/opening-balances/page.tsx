@@ -45,7 +45,7 @@ function OpeningView() {
       <PageHeader
         breadcrumbs={[{ label: "Books", href: "/app/accounting" }, { label: "Opening balances" }]}
         title="Opening balances"
-        description="Where your books start: what was in the bank, in wallets before Setra began monitoring, owed on loans. Customer and vendor balances come from invoices and bills."
+        description="Record what the business held and owed before its first activity in Setra. Customer and vendor balances come from invoices and bills instead."
       />
       {data.entry_id && <Alert tone="info">Current opening balances are dated {calendarDate(data.date, { year: true })}. Saving again replaces them: the old entry is reversed, never edited.</Alert>}
       {error && <Alert tone="danger">{error.message}</Alert>}

@@ -120,14 +120,14 @@ export async function monthClose(c: Client, organizationId: string, environment:
           label: "Receivables match unpaid invoices",
           status: ar.ledger_check.matches ? "ok" : "attention",
           detail: ar.ledger_check.matches ? `Accounts receivable ${ar.ledger_check.account_balance} equals the unpaid invoices.` : `Accounts receivable is ${ar.ledger_check.account_balance} but unpaid invoices total ${ar.ledger_check.subledger_total}.`,
-          link: "/app/reports/receivables-aging"
+          link: "/app/reports/receivables"
         },
     {
       key: "payables",
       label: "Payables match unpaid bills",
       status: ap.ledger_check.matches ? "ok" : "attention",
       detail: ap.ledger_check.matches ? `Accounts payable ${ap.ledger_check.account_balance} equals the approved unpaid bills.` : `Accounts payable is ${ap.ledger_check.account_balance} but unpaid bills total ${ap.ledger_check.subledger_total}.`,
-      link: "/app/reports/payables-aging"
+      link: "/app/reports/payables"
     }
   ];
 

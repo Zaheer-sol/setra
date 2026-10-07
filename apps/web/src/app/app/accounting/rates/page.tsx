@@ -22,7 +22,7 @@ function RatesView() {
       <PageHeader
         breadcrumbs={[{ label: "Books", href: "/app/accounting" }, { label: "Exchange rates & gas" }]}
         title="Exchange rates & gas"
-        description="Setra never guesses a price. To value something that isn't a US-dollar stablecoin (gas paid in MON, a euro stablecoin), it uses a rate you enter or one published by a named source, and records which rate it used on every entry."
+        description="Value gas fees and non-USD assets with a rate you enter or a rate from a named source. Every journal entry records the rate and source used."
         actions={can("financials:manage") && <Button variant="primary" icon={<Plus />} onClick={() => setAdding("MON")}>Add a rate</Button>}
       />
       {waiting.length > 0 && (

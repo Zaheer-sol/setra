@@ -340,7 +340,7 @@ export function verifySetraWebhook(secret, rawBody, timestamp, header, tolerance
         </ol>
         <h2>Guarantees</h2>
         <ul>
-          <li>Non-custodial: the contract never holds a balance. No owner, no admin, no upgrades, no fees.</li>
+          <li>Non-custodial: the contract never holds a balance and has no owner, admin controls, upgrade path or fee logic.</li>
           <li>Each intent can be paid once, only before expiry, and only exactly as stated, changing any term changes the id.</li>
           <li>Ids are domain-separated by chain and deployment, so they can&rsquo;t be replayed elsewhere.</li>
           <li>Fee-on-transfer or otherwise inexact tokens are rejected, so the event always equals what arrived.</li>

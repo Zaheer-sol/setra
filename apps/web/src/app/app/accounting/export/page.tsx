@@ -42,7 +42,7 @@ function ExportView() {
       <PageHeader
         breadcrumbs={[{ label: "Books", href: "/app/accounting" }, { label: "Export for your accountant" }]}
         title="Export for your accountant"
-        description="Keep using QuickBooks or Xero alongside Setra: export the posted journal and chart of accounts in their import layouts. Only posted entries are exported; amounts are in USD."
+        description="Export the posted journal and chart of accounts in QuickBooks or Xero import layouts. Drafts stay out of the file, and every amount is reported in USD."
       />
       <Card title="Where is it going?">
         <div className="px-6 py-5 max-md:px-4">

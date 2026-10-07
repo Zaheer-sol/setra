@@ -25,7 +25,7 @@ function BillsView() {
     <div className="grid gap-6 [&>*]:min-w-0">
       <PageHeader
         title="Bills"
-        description="What you owe vendors. Approve a bill to make it a payable, then record the payment, onchain or off."
+        description="What your business owes vendors. Approve a bill to create the payable, then link an onchain transfer or record another payment method."
         actions={can("financials:write") && <Button variant="primary" icon={<Plus />} onClick={() => setAdding(true)}>Record bill</Button>}
       />
       {data && (

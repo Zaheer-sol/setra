@@ -322,7 +322,7 @@ export function matchPayment(payment: ObservedPayment, ctx: MatchContext): Match
     .filter((i) => i.amountDue === payment.amount)
     .map((i) => toCandidate(i, ["Same amount as an invoice already paid"]));
   checks.push({ code: "uniqueness", passed: false, label: "No deterministic match", detail: "No open invoice is identified by a reference, a known wallet or an exact amount" });
-  return review("unknown_payment", "We received this payment, but could not safely determine which customer or invoice it belongs to.", [...partialFits, ...dupes]);
+  return review("unknown_payment", "Setra received this payment but couldn't safely tell which customer or invoice it belongs to.", [...partialFits, ...dupes]);
 
   function apply(invoice: InvoiceCandidate, why: string): MatchDecision {
     const remaining = remainingOf(invoice);

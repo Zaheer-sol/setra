@@ -53,7 +53,7 @@ function BooksView() {
     <div className="grid gap-6 [&>*]:min-w-0">
       <PageHeader
         title="Books"
-        description="Your general ledger, kept automatically from every payment, invoice, bill and expense. Every number traces back to where it came from."
+        description="One double-entry ledger for invoices, payments, bills, expenses and corrections. Every balance traces back to its journal entries and source records."
         actions={
           <>
             <ButtonLink href="/app/reports">Reports</ButtonLink>
@@ -77,7 +77,7 @@ function BooksView() {
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_380px] [&>*]:min-w-0">
         <Card
           title="Do the books agree?"
-          description="Setra checks the ledger against invoices, bills, wallets and onchain activity each time you open this page."
+          description="Setra compares the ledger with invoices, bills, wallets and onchain activity each time this page loads."
           actions={
             <>
               <Button size="sm" variant="ghost" icon={<RefreshCw />} onClick={() => mutate()} aria-label="Check again">

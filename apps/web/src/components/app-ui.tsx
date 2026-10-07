@@ -572,7 +572,7 @@ export function Tooltip({ label, children }: { label: string; children: ReactNod
 export function CodeBlock({ code, label, className }: { code: string; label?: string; className?: string }) {
   return (
     <div className={cn("relative overflow-x-auto rounded-2xl bg-[#1d1d1f] px-[18px] py-4 font-mono text-[12.5px] leading-[1.65] whitespace-pre text-[#f5f5f7] dark:shadow-card", className)} aria-label={label}>
-      <CopyButton value={code} label="Copy code" className="absolute top-2.5 right-2.5 text-[#86868b] hover:bg-white/10 hover:text-white" />
+      <CopyButton value={code} label="Copy code" className="absolute top-2.5 right-2.5 size-8 text-[#86868b] hover:bg-white/10 hover:text-white" />
       <code>{code}</code>
     </div>
   );

@@ -53,7 +53,7 @@ export default function PaymentDetailPage() {
   return (
     <Stack>
       <PageHeader breadcrumbs={[{ label: "Payments", href: "/app/payments" }, { label: p.business_object?.number ? `${p.business_object.number} payment` : "Payment" }]} />
-      <h1 className="sr-only">Payment {p.id}</h1>
+      <h1 className="sr-only">{`Payment of ${tokenAmount(p.amount, p.asset.symbol)} from ${p.customer?.name ?? "an unknown sender"}`}</h1>
 
       <DetailHero
         actions={
@@ -246,7 +246,7 @@ export default function PaymentDetailPage() {
         </Stack>
 
         <Stack>
-          <Card title="Obligation">
+          <Card title="What it paid for">
             <CardBody className="py-1">
               <KV
                 items={[
@@ -519,7 +519,7 @@ function History({ p }: { p: any }) {
     items.push({
       at: e.created_at,
       title: eventLabel[e.type] ?? e.type,
-      meta: `${e.type} · ${e.rule_version}`,
+      meta: `Rules ${e.rule_version}`,
       tone: e.type === "PAYMENT_REVERSED" ? "danger" : e.type === "UNKNOWN_PAYMENT" ? "warning" : e.type === "PAYMENT_OBSERVED" ? "info" : "success",
       icon: e.type === "PAYMENT_REVERSED" ? <RotateCcw /> : e.type === "UNKNOWN_PAYMENT" ? <AlertTriangle /> : <CircleDot />,
       href: `/app/developers/events/${e.id}`

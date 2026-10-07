@@ -22,7 +22,7 @@ function VendorsView() {
     <div className="grid gap-6 [&>*]:min-w-0">
       <PageHeader
         title="Vendors"
-        description="The businesses and people you pay. Link their wallets so transfers to them are recognized, and track what you owe each one."
+        description="The businesses and people you pay. Keep their bills, expenses, balances and known receiving addresses together."
         actions={can("financials:write") && <Button variant="primary" icon={<Plus />} onClick={() => setAdding(true)}>New vendor</Button>}
       />
       <Card>

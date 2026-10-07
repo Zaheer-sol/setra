@@ -4,7 +4,7 @@ import { DOCS } from "@/lib/docs";
 import { CodeBlock } from "@/components/app-ui";
 import { Seti } from "@/components/seti";
 
-export const metadata: Metadata = { title: "Docs", description: "Setra developer documentation." };
+export const metadata: Metadata = { title: "Docs", description: "Build with Setra APIs, financial events, webhooks and payment intents on Monad." };
 
 export default function DocsIndex() {
   return (
@@ -13,7 +13,7 @@ export default function DocsIndex() {
         <div>
           <h1 className="text-[2.5rem] leading-tight font-bold tracking-[-0.03em]">Setra documentation</h1>
           <p className="mt-3 text-[1.0625rem] text-muted-foreground">
-            Setra turns stablecoin payments on Monad into verified financial events. Use the console without code, or integrate the same engine through the API and webhooks.
+            Create orders and invoices, receive matched payment events, and read the same numbers you see in the Setra console. The API, webhooks and console all run on one engine.
           </p>
         </div>
         <Seti mood="focused" size={130} priority className="shrink-0 max-sm:hidden" />
