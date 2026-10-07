@@ -208,42 +208,74 @@ function paymentNote(p: Any): string | undefined {
   return undefined;
 }
 
-const HELP: Block[] = [
-  { type: "text", text: "Hi, I'm Seti. Ask about the business in plain language, or tell me who to bill and I'll prepare the request for your confirmation." },
-  {
-    type: "choice",
-    prompt: "For example",
-    options: [
-      { label: "What should I focus on today?", value: "@text" },
-      { label: "How much profit did we make this month?", value: "@text" },
-      { label: "Why is profit different from last month?", value: "@text" },
-      { label: "How much cash do we have?", value: "@text" },
-      { label: "What do we owe vendors?", value: "@text" },
-      { label: "Did Acme Ltd pay?", value: "@text" },
-      { label: "What's outstanding?", value: "@text" },
-      { label: "Create a $250 USDC payment request for Acme Ltd for website development, due Friday", value: "@text" },
-      { label: "Are the books in order?", value: "@text" }
-    ]
-  }
+// Example prompts, rotated so a second "what else?" or a second miss never shows the same set.
+const EXAMPLES = [
+  ["What should I focus on today?", "How much cash do we have?", "What's outstanding?", "Create a $250 payment request for website design, due Friday"],
+  ["Why is profit different from last month?", "What do we owe vendors?", "Who sent my last unknown payment?", "Record a $49 expense for Vercel hosting paid from the bank"],
+  ["Are the books in order?", "What needs classifying?", "Anything that needs review?", "What does accrual accounting mean?"]
+];
+const examples = (set: number, prompt = "For example"): Block => ({ type: "choice", prompt, options: EXAMPLES[set % EXAMPLES.length]!.map((label) => ({ label, value: "@text" })) });
+
+const CAPABILITIES = [
+  "Here's what I can do. Ask in your own words, and I'll check with you before creating or changing anything.",
+  "",
+  "• Payments: who paid, what's outstanding or overdue, and what's waiting for review",
+  "• Invoices: turn one sentence into a payment request you can send",
+  "• Books: profit, cash, what you owe vendors, and whether the books tie out",
+  "• Spending: record an expense or a vendor bill",
+  "• Month end: close a month once its checks pass",
+  "• Questions: what an accounting term or a Setra status means"
+].join("\n");
+const MORE_CAPABILITIES = [
+  "A few things people don't expect:",
+  "",
+  "• Explain why a payment was matched to an invoice, or why it wasn't",
+  "• Tell you who's probably behind an unknown wallet",
+  "• Show everything about one customer: invoices, payments, what they owe",
+  "• Find a payment by amount, wallet address or transaction hash",
+  "• Explain why profit moved compared with last month"
+].join("\n");
+
+// When a message isn't understood: say so plainly, and never the same way twice in a row.
+const UNKNOWN = [
+  "I didn't follow that one. I'm best with your payments, invoices and books. Try asking it another way, or pick one of these:",
+  "That's outside what I can answer. I can look up payments, invoices, cash, profit and what you owe. Here are a few ideas:",
+  "I'm not sure what you're after there. Name a customer, an invoice, an amount or part of the books and I'll take a look, or try one of these:"
 ];
 
-// When a message isn't understood: short, a little varied, and four things worth trying.
-const UNKNOWN = [
-  "I'm not sure which record or accounting question you mean. Name a payment, customer, invoice or part of the books, or choose an example below.",
-  "I need a little more financial context. Tell me which payment, customer or accounting question to check, or choose an example below.",
-  "I couldn't connect that request to a Setra record or accounting question. Choose an example below to get started."
-];
-const SUGGEST: Block = {
-  type: "choice",
-  prompt: "For example",
-  options: [
-    { label: "What should I focus on today?", value: "@text" },
-    { label: "What's outstanding?", value: "@text" },
-    { label: "How much cash do we have?", value: "@text" },
-    { label: "Anything that needs review?", value: "@text" },
-    { label: "What does reconciliation mean?", value: "@text" }
-  ]
-};
+/** How many times Seti has already given this kind of answer in the conversation. */
+const answered = (ctx: AssistantContext, intent: string) =>
+  (ctx.history ?? []).filter((turn) => turn.role === "assistant" && turn.content === `Seti handled that as: ${intent.replace(/_/g, " ")}.`).length;
+
+async function greeting(ctx: AssistantContext): Promise<Reply> {
+  const [me, overview] = await Promise.all([
+    api(ctx, "GET", "/v1/me").catch(() => null),
+    api(ctx, "GET", "/v1/overview?period=today").catch(() => null)
+  ]);
+  const first = String(me?.user?.name ?? "").trim().split(/\s+/)[0];
+  const hello = `${pick(ctx.messageId, ["Hi", "Hello", "Hey"])}${first ? ` ${first}` : ""}.`;
+  const review = Number(overview?.metrics?.needs_attention ?? 0);
+  const open = Number(overview?.metrics?.outstanding_invoices ?? 0);
+  const status =
+    review > 0
+      ? `${review} payment${review === 1 ? " is" : "s are"} waiting for your review. Want to start there?`
+      : open > 0
+        ? `Nothing needs a decision right now. ${open} payment request${open === 1 ? " is" : "s are"} still open.`
+        : "Nothing needs you right now. What would you like to know?";
+  const options = review > 0 ? ["Anything that needs review?", "What should I focus on today?", "How much cash do we have?"] : ["What should I focus on today?", "What's outstanding?", "How much profit did we make this month?"];
+  return { intent: "greeting", pending: null, blocks: [{ type: "text", text: `${hello} ${status}` }, { type: "choice", prompt: "Or ask", options: options.map((label) => ({ label, value: "@text" })) }] };
+}
+
+function help(ctx: AssistantContext): Reply {
+  const seen = answered(ctx, "help");
+  if (seen === 0) return { intent: "help", pending: null, blocks: [{ type: "text", text: CAPABILITIES }, examples(0)] };
+  return { intent: "help", pending: null, blocks: [{ type: "text", text: MORE_CAPABILITIES }, examples(seen, "Try")] };
+}
+
+function unknown(ctx: AssistantContext): Reply {
+  const misses = answered(ctx, "unknown");
+  return { intent: "unknown", pending: null, blocks: [{ type: "text", text: UNKNOWN[misses % UNKNOWN.length]! }, examples(misses)] };
+}
 
 // ── customers ─────────────────────────────────────────────────────────────────────────────────
 
@@ -312,7 +344,11 @@ async function respondInner(ctx: AssistantContext, text: string, choice?: string
     case "who_sent":
       return whoSent(ctx, intent.amount);
     case "help":
-      return { intent: "help", pending: null, blocks: HELP };
+      return help(ctx);
+    case "greeting":
+      return greeting(ctx);
+    case "thanks":
+      return { intent: "thanks", pending: null, blocks: [{ type: "text", text: pick(ctx.messageId, ["You're welcome.", "Anytime.", "Glad that helped."]) }] };
     case "guidance":
       return { intent: "guidance", pending: null, blocks: [{ type: "text", text: intent.answer }] };
     case "fin_pl":
@@ -328,7 +364,7 @@ async function respondInner(ctx: AssistantContext, text: string, choice?: string
     case "close_period":
       return financial(ctx, intent);
     default:
-      return { intent: "unknown", pending: null, blocks: [{ type: "text", text: pick(text.toLowerCase(), UNKNOWN) }, SUGGEST] };
+      return unknown(ctx);
   }
 }
 

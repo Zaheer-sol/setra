@@ -46,6 +46,11 @@ describe("questions", () => {
     ["Give me the accounting details for John's payment.", { kind: "accounting", customer: "John" }],
     ["The payment from John is actually for the website project.", { kind: "correction", customer: "John", target: "website project" }],
     ["/help", { kind: "help" }],
+    ["what else can you do?", { kind: "help" }],
+    ["How can you help me?", { kind: "help" }],
+    ["hey", { kind: "greeting" }],
+    ["Good morning!", { kind: "greeting" }],
+    ["thanks seti", { kind: "thanks" }],
     ["INV-2061", { kind: "accounting", invoice: "INV-2061" }]
   ])("%s", (text, expected) => {
     expect(parseIntent(text)).toMatchObject(expected);

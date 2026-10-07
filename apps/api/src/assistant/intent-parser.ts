@@ -49,6 +49,8 @@ export type Intent =
   | { kind: "who_sent"; amount?: string }
   | { kind: "guidance"; answer: string }
   | { kind: "help" }
+  | { kind: "greeting" }
+  | { kind: "thanks" }
   | { kind: "unknown" };
 
 export const MAX_MESSAGE = 2000;
@@ -199,7 +201,9 @@ export function parseIntent(input: string): Intent {
   const payment = PAYMENT_RE.exec(original)?.[1];
   const tx = TX_RE.exec(original)?.[1]?.toLowerCase();
 
-  if (/^\/?(help|\?)$|^(what can you do|how does this work|what do you do)\b|^(hi|hello|hey)\b[\s!.?]*$/.test(t)) return { kind: "help" };
+  if (/^(hi|hello|hey|hiya|yo|gm|good (?:morning|afternoon|evening))(?: there| seti)?[\s!.?,]*$/.test(t)) return { kind: "greeting" };
+  if (/^(thanks|thank you|thx|ty|cheers)(?: so much| a lot| seti)?[\s!.?]*$/.test(t)) return { kind: "thanks" };
+  if (/^\/?(help|\?)$|\b(what (?:else )?(?:can|could) (?:you|seti) (?:do|help(?: me)? with)|how (?:can|could) you help|what do you do|who are you|what are you|how does (?:this|seti|setra) work|what are your (?:capabilities|features))\b/.test(t)) return { kind: "help" };
 
   // "Who sent the $740?" / "where did that 740 come from?": who is behind an unidentified payment.
   if (/\b(who\s+(?:sent|sends|transferred)|who(?:\s+is|\s+was|['’]s)\s+behind|whose\s+(?:money|payment|transfer)|where\s+did\s+.+\s+come\s+from)\b/.test(t)) {
