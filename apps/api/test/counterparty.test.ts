@@ -18,7 +18,7 @@ afterAll(async () => {
 const auth = (s: Session) => ({ cookie: s.cookie });
 const hex32 = () => `0x${randomBytes(32).toString("hex")}`;
 
-type Reply = { labels?: Array<{ label: string; category: string; kind: string[] }>; counterparties?: Array<{ address: string; interactions: number }> };
+type Reply = { labels?: Array<{ label: string; category: string; kind: string[] }>; counterparties?: Array<{ address: string; interactions: number }>; status?: number };
 
 /** Run with a fake Nansen that answers labels and counterparties per address, counting calls by endpoint. */
 async function withNansen<T>(answers: Record<string, Reply>, fn: (calls: { labels: number; counterparties: number }) => Promise<T>): Promise<T> {
@@ -34,6 +34,7 @@ async function withNansen<T>(answers: Record<string, Reply>, fn: (calls: { label
     const answer = answers[String(body.address).toLowerCase()];
     if (u.endsWith("/profiler/address/labels")) {
       calls.labels += 1;
+      if (answer?.status) return new Response("{}", { status: answer.status });
       if (!answer?.labels) return new Response("{}", { status: 404 });
       return Response.json({ pagination: { page: 1, per_page: 50, is_last_page: true }, data: answer.labels });
     }
@@ -96,6 +97,33 @@ describe("who is behind an unknown sender", () => {
       expect((await call("GET", `/v1/payments/${unknown.id}/counterparty`, auth(s))).data).toMatchObject({ status: "disabled", related_customers: [] });
       expect((await call("GET", `/v1/counterparty/address?address=${sender}&network=monad`, auth(s))).data).toMatchObject({ status: "disabled", shared: false });
       expect(calls).toEqual({ labels: 0, counterparties: 0 });
+    });
+  });
+});
+
+describe("spending Nansen credits carefully", () => {
+  it("background checks read only past lookups, and an empty account is explained, not retried on every visit", async () => {
+    const s = await signup();
+    await setupWorkspace(s);
+    await enable(s);
+    const sender = randomAddress();
+    const broke = randomAddress();
+    const unknown = await unknownFrom(s, sender);
+    const other = await unknownFrom(s, broke, "12.00");
+    await withNansen({ [sender]: { labels: [{ label: "Binance: Deposit", category: "cex", kind: ["exchange"] }] }, [broke]: { status: 403 } }, async (calls) => {
+      // A page load before anyone asked: nothing is spent.
+      expect((await call("GET", `/v1/payments/${unknown.id}/counterparty?cached_only=true`, auth(s))).data).toMatchObject({ status: "not_looked_up" });
+      expect(calls.labels).toBe(0);
+      // Someone clicks "Look up sender"; afterwards the background check sees the answer for free.
+      await call("GET", `/v1/payments/${unknown.id}/counterparty`, auth(s));
+      expect((await call("GET", `/v1/payments/${unknown.id}/counterparty?cached_only=true`, auth(s))).data).toMatchObject({ status: "ok", kind: "exchange" });
+      expect(calls.labels).toBe(1);
+
+      const failed = (await call("GET", `/v1/payments/${other.id}/counterparty`, auth(s))).data;
+      expect(failed.status).toBe("error");
+      expect(failed.message).toMatch(/out of credits/);
+      await call("GET", `/v1/payments/${other.id}/counterparty`, auth(s));
+      expect(calls.labels).toBe(2);
     });
   });
 });

@@ -20,7 +20,7 @@ export interface CounterpartyLabel {
 export type CounterpartyKind = "exchange" | "bridge" | "fund" | "contract" | "protocol" | "wallet" | "unknown";
 
 export type CounterpartyIntel =
-  | { status: "disabled" | "not_configured" | "unsupported_chain"; source: "nansen"; message: string }
+  | { status: "disabled" | "not_configured" | "unsupported_chain" | "not_looked_up"; source: "nansen"; message: string }
   | { status: "error"; source: "nansen"; message: string }
   | {
       status: "ok" | "none";
@@ -37,6 +37,21 @@ export type CounterpartyIntel =
     };
 
 const TTL_MS = 7 * 86_400_000;
+// A failed lookup isn't retried on every page view: wait a while, so a missing key, empty credits or a
+// rate limit don't turn each visit into another paid request.
+const ERROR_RETRY_MS = 15 * 60_000;
+
+/** Fresh enough to serve without asking Nansen again. */
+const fresh = (row: { status: string; fetched_at: Date } | undefined) =>
+  !!row && Date.now() - new Date(row.fetched_at).getTime() < (row.status === "error" ? ERROR_RETRY_MS : TTL_MS);
+
+/** Nansen's HTTP errors in words a person can act on. */
+function nansenError(status: number): string {
+  if (status === 401) return "Nansen didn't accept the API key.";
+  if (status === 402 || status === 403) return "The Nansen account is out of credits or its plan doesn't include this lookup.";
+  if (status === 429) return "Nansen is limiting requests right now. Try again in a minute.";
+  return `Nansen responded ${status}.`;
+}
 const NANSEN_URL = "https://api.nansen.ai/api/v1/profiler/address/labels";
 
 /** Nansen's chain name for a Setra chain. Testnets map to their mainnet (addresses are the same). */
@@ -147,7 +162,7 @@ async function fetchNansen(chain: string, address: string): Promise<{ status: "o
       signal: controller.signal
     });
     if (res.status === 404) return { status: "none", labels: [] };
-    if (!res.ok) throw new Error(`Nansen responded ${res.status}`);
+    if (!res.ok) throw new Error(nansenError(res.status));
     const body = (await res.json()) as { data?: Array<{ label?: unknown; category?: unknown; kind?: unknown }> };
     const labels = (body.data ?? [])
       .filter((d) => typeof d.label === "string" && d.label.trim())
@@ -159,7 +174,7 @@ async function fetchNansen(chain: string, address: string): Promise<{ status: "o
 }
 
 /** Labels and advice for a sender address, if the workspace has it enabled and Nansen covers the chain. */
-export async function counterpartyIntel(organizationId: string, chainId: number, rawAddress: string, opts: { refresh?: boolean; direction?: "in" | "out" } = {}): Promise<CounterpartyIntel> {
+export async function counterpartyIntel(organizationId: string, chainId: number, rawAddress: string, opts: { refresh?: boolean; direction?: "in" | "out"; cacheOnly?: boolean } = {}): Promise<CounterpartyIntel> {
   const address = rawAddress.toLowerCase();
   const enabled = (await withGlobal((c) => c.query("SELECT counterparty_intel_enabled FROM organizations WHERE id = $1", [organizationId]))).rows[0]?.counterparty_intel_enabled;
   if (!enabled) return { status: "disabled", source: "nansen", message: "Counterparty lookups are off for this workspace. Turn them on in Settings." };
@@ -171,7 +186,9 @@ export async function counterpartyIntel(organizationId: string, chainId: number,
     | { status: string; labels: CounterpartyLabel[]; error: string | null; fetched_at: Date }
     | undefined;
   let cached = true;
-  const stale = !row || row.status === "error" || Date.now() - new Date(row.fetched_at).getTime() > TTL_MS;
+  const stale = !fresh(row);
+  // Background checks (page loads) only read what someone already looked up; each new lookup costs credits.
+  if (stale && opts.cacheOnly) return { status: "not_looked_up", source: "nansen", message: "Not looked up yet." };
   if (stale || opts.refresh) {
     cached = false;
     try {
@@ -253,7 +270,7 @@ async function fetchCounterparties(chain: string, address: string): Promise<Coun
       signal: controller.signal
     });
     if (res.status === 404) return [];
-    if (!res.ok) throw new Error(`Nansen responded ${res.status}`);
+    if (!res.ok) throw new Error(nansenError(res.status));
     const body = (await res.json()) as { data?: Array<Record<string, unknown>> };
     return (body.data ?? [])
       .map((d) => ({
@@ -273,7 +290,7 @@ async function fetchCounterparties(chain: string, address: string): Promise<Coun
  * repeatedly moved money to or from a wallet saved for Acme Ltd, Acme is a good first guess. It is
  * only ever shown as a suggestion; nothing is assigned from it.
  */
-export async function relatedCustomers(organizationId: string, environment: "test" | "live", chainId: number, rawAddress: string, opts: { refresh?: boolean } = {}): Promise<{ status: "ok" | "none" | "unavailable"; customers: RelatedCustomer[]; lookbackDays: number }> {
+export async function relatedCustomers(organizationId: string, environment: "test" | "live", chainId: number, rawAddress: string, opts: { refresh?: boolean; cacheOnly?: boolean } = {}): Promise<{ status: "ok" | "none" | "unavailable"; customers: RelatedCustomer[]; lookbackDays: number }> {
   const address = rawAddress.toLowerCase();
   const unavailable = { status: "unavailable" as const, customers: [], lookbackDays: LOOKBACK_DAYS };
   const enabled = (await withGlobal((c) => c.query("SELECT counterparty_intel_enabled FROM organizations WHERE id = $1", [organizationId]))).rows[0]?.counterparty_intel_enabled;
@@ -283,7 +300,8 @@ export async function relatedCustomers(organizationId: string, environment: "tes
   let row = (await withGlobal((c) => c.query("SELECT * FROM counterparty_relations WHERE source = 'nansen' AND chain = $1 AND address = $2", [mapped.chain, address]))).rows[0] as
     | { status: string; counterparties: Counterparty[]; fetched_at: Date }
     | undefined;
-  const stale = !row || row.status === "error" || Date.now() - new Date(row.fetched_at).getTime() > TTL_MS;
+  const stale = !fresh(row);
+  if (stale && opts.cacheOnly) return unavailable;
   if (stale || opts.refresh) {
     try {
       const found = await fetchCounterparties(mapped.chain, address);

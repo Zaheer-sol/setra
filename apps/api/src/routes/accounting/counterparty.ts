@@ -7,7 +7,11 @@ import { idParam, route } from "../../lib/route";
 
 type Row = Record<string, any>;
 
-const refresh = z.object({ refresh: z.enum(["true", "false"]).default("false").transform((v) => v === "true") });
+const refresh = z.object({
+  refresh: z.enum(["true", "false"]).default("false").transform((v) => v === "true"),
+  // Background checks pass cached_only: they read past lookups and never spend Nansen credits themselves.
+  cached_only: z.enum(["true", "false"]).default("false").transform((v) => v === "true")
+});
 
 /** Counterparty intelligence (Nansen): who is behind a wallet that sent or received money, as a hint for a person. */
 export function counterpartyRoutes(app: FastifyInstance) {
@@ -23,9 +27,9 @@ export function counterpartyRoutes(app: FastifyInstance) {
     handler: async ({ tx, params, query, organizationId, environment }) => {
       const p = (await tx((c) => c.query("SELECT id, chain_id, from_address, customer_id FROM payments WHERE id = $1 AND organization_id = $2 AND environment = $3", [params.id, organizationId, environment]))).rows[0] as Row | undefined;
       if (!p) throw notFound("payment");
-      const intel = await counterpartyIntel(organizationId, Number(p.chain_id), p.from_address, { refresh: query.refresh });
+      const intel = await counterpartyIntel(organizationId, Number(p.chain_id), p.from_address, { refresh: query.refresh, cacheOnly: query.cached_only });
       // For a payment nobody could place, also check which known customers this wallet has dealt with.
-      const related = !p.customer_id && (intel.status === "ok" || intel.status === "none") ? await relatedCustomers(organizationId, environment, Number(p.chain_id), p.from_address, { refresh: query.refresh }) : null;
+      const related = !p.customer_id && (intel.status === "ok" || intel.status === "none") ? await relatedCustomers(organizationId, environment, Number(p.chain_id), p.from_address, { refresh: query.refresh, cacheOnly: query.cached_only }) : null;
       return { payment_id: p.id, from_address: p.from_address, known_customer: !!p.customer_id, ...intel, related_customers: related?.customers ?? [], related_lookback_days: related?.lookbackDays ?? null };
     }
   });

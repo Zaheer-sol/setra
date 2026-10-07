@@ -115,7 +115,7 @@ export function AddressCheck({ address, network = "monad" }: { address: string; 
 
 /** The sending wallet's reading, for decisions such as whether to remember it for a customer. */
 export function useSenderIntel(paymentId: string | undefined) {
-  const { data } = useApi<any>(paymentId ? `/v1/payments/${paymentId}/counterparty` : null, { revalidateOnFocus: false });
+  const { data } = useApi<any>(paymentId ? `/v1/payments/${paymentId}/counterparty?cached_only=true` : null, { revalidateOnFocus: false });
   const shared = !!data && (data.status === "ok" || data.status === "none") && ["exchange", "bridge", "contract", "protocol"].includes(data.kind);
   return { shared, labels: (data?.labels ?? []) as Array<{ label: string }> };
 }

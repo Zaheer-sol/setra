@@ -34,6 +34,15 @@ to the explorer.
 Not done yet: no payment on Monad mainnet (mainnet ingestion was verified read-only), and the
 contracts are deployed on testnet only.
 
+## Where Setra uses Nansen
+
+When money arrives from a wallet nobody recognises, Setra asks Nansen who is behind it and turns the
+answer into advice a bookkeeper can act on: "an exchange wallet, so match by amount and date and don't
+save this address to a customer", or "this wallet has dealt with Acme Ltd's saved wallet 3 times". The
+same lookup warns before a shared address is saved to a customer, explains who received money going
+out, and answers "who sent the $740?" in Seti. It's always a suggestion for a person; nothing is matched
+from a label. Details, files and the privacy and credit rules: [`docs/nansen.md`](docs/nansen.md).
+
 ## What's in this repository
 
 ```
