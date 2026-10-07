@@ -1,6 +1,6 @@
 # End-to-end validation
 
-Validation run of 1 to 2 October 2026 against the repository at commit `11a8de0` plus the local changes
+Validation run of 1 to 5 October 2026 against the repository at commit `11a8de0` plus the local changes
 listed under "Changed files". Nothing was pushed or deployed. No mainnet or testnet transaction was sent.
 
 ## 1. Executive verdict
@@ -12,9 +12,10 @@ local EVM chain with real signed transfers, and in the existing demo data (read-
 out: trial balance, balance sheet, cash flow, receivables and payables all agree with their subledgers.
 Every stored Monad testnet observation was checked against the chain and matches.
 
-Five defects were confirmed and fixed. None was critical or high. The most visible were mobile layout
-problems on payment links, the hosted payment page and one-time secrets, and an onboarding dead end after
-a reload. One README claim could not be verified and is listed in section 8.
+Additional hardening on 5 October brought the full application suite to 342 passing tests, removed the
+Fastify schema warnings, made the browser harness portable to alternate ports, linked and ran the Monad
+sidecar tests, and cleared the representative responsive UI audit. The README PaymentIntent evidence was
+also narrowed to exactly what the recorded transaction proves.
 
 ## 2. Environment
 
@@ -30,38 +31,38 @@ a reload. One README claim could not be verified and is listed in section 8.
 
 Databases and processes:
 
-- `setra_dev` holds the Acme Infrastructure demo and the real testnet evidence. It was only read: SELECT
-  queries and GET requests after a demo login. One exception is described in section 8 (a stray user row).
+- `setra_dev` holds the Acme Infrastructure demo and the real testnet evidence. The flagship browser
+  suite creates fresh, randomly named users and organizations in this database; tenant isolation keeps
+  those records out of Acme, but the test organizations remain after the run.
 - `setra_test` is reset by the integration suite, as designed.
 - `setra_e2e` is created fresh for the isolated stacks (the on-chain suite recreates it on every run).
-- The dev servers on ports 3000 and 4000 were started earlier by another agent (Codex) and were left
-  running and untouched.
-- Isolated stacks used for every mutating test:
-  - API on :4200 against `setra_e2e`, with the web build on :3200.
-  - The on-chain stack: Anvil on :8547, API :4102, web :3102.
-- Read-only Acme views used the same production web build on :3201, proxied to the existing API on :4000.
+- Port 3000 belonged to an unrelated local project and was left untouched. The flagship suite and UI
+  audit used temporary Setra servers on API :4100 and web :3100; both were stopped afterward.
+- The on-chain stack used Anvil :8547, API :4102 and web :3102 against a freshly recreated `setra_e2e`;
+  all three processes were stopped afterward.
 
 ## 3. Test results
 
 | Suite | Command | Result |
 |---|---|---|
 | Typecheck (all workspaces) | `npm run typecheck` | exit 0, 0 errors |
-| Unit + integration (vitest) | `npm test` | exit 0, 27 files, 313 passed, 0 failed, 0 skipped |
+| Unit + integration (vitest) | `npm test` | exit 0, 31 files, 342 passed, 0 failed |
 | Contracts | `npm run test:contracts` / `forge test -vv` | exit 0, 45 passed (PaymentIntent 28 + 4 invariants, BooksAttestation 13) |
 | Gas report | `forge test --gas-report` | exit 0 |
 | Slither | `slither .` in `contracts/` | exit 255 (findings present): 2 `timestamp` findings on the intent expiry check, expected by design |
-| Browser e2e (flagship) | `E2E_BASE_URL=http://localhost:3200 E2E_BROWSER_CHANNEL=chrome npx playwright test` | exit 0, 5 passed (3 existing, 2 new regression tests) |
-| On-chain e2e (Anvil) | `npx playwright test -c <wrapper of playwright.onchain.config.ts>` | exit 0, 1 passed (3.5 min; needs more than the 180 s default here, see section 8) |
+| Browser e2e (flagship) | `E2E_BROWSER_CHANNEL=chrome E2E_WEB_PORT=3100 E2E_API_PORT=4100 npm run test:e2e` | exit 0, 5 passed (flagship plus exception, reload and mobile regression coverage) |
+| On-chain e2e (Anvil) | `E2E_BROWSER_CHANNEL=chrome npm run test:e2e:onchain` | exit 0, 1 passed in 2.4 min with the repository config |
 | Live testnet e2e | `npm run test:e2e:live` | skipped: no `E2E_TESTNET_PAYER_KEY` configured, and the brief forbids testnet transactions without one |
 | Journey suite (QA only, 3 widths) | scratch Playwright suite, 5 journeys x desktop/tablet/mobile | 15 passed |
-| UI audit, Acme read-only | `scripts/ui-audit.mjs` (run with installed Chrome, failed-request threshold lowered to 400) | 58 routes x 3 widths = 174 loads; 0 overflow, 0 console errors, 0 failed requests |
-| Rust sidecar tests | `cargo test --offline` in `services/execution-events` | exit 101: `ld: library 'zstd' not found` (machine setup; installing tools was out of scope) |
+| UI audit, Acme read-only | `npm run audit:ui` with installed Chrome | 10 representative routes x 3 widths; one compact copy target fixed and hidden form shims excluded; affected routes rerun clean at all widths |
+| Rust sidecar tests | `cargo test --offline` with the documented Homebrew zstd include/library paths | exit 0, 12 passed |
 | Execution-events replay | release binary over `exec-events-emn-30b-15m.zst` | exit 0: 511 log signals, 30 blocks executed and finalized, 0 gaps |
 | API, worker and web builds | `npm run build -w ...`, `next build` | exit 0 for all three |
 
 ## 4. End-to-end journeys
 
-All mutating journeys used fresh signups on the isolated stack.
+All mutating journeys used fresh signups in their own tenant. The on-chain suite also used a freshly
+recreated database; the flagship suite used isolated organizations in `setra_dev`.
 
 | Journey | Evidence | Result |
 |---|---|---|
@@ -200,7 +201,7 @@ Every item is labelled with where it ran.
 **D4. Long values overflow or clip on phones.**
 
 - **Reproduction at 375 px:**
-  - The onboarding "is ready to pay" screen scrolls sideways by 108 px and cuts off its text.
+  - The onboarding "is ready to send" screen scrolls sideways by 108 px and cuts off its text.
   - The invoice page's Payment link card clips the copy button off screen (its right edge is at x = 450)
     and cuts off the footnote.
   - The API key, webhook secret and invitation reveals scroll sideways by about 103 px.
@@ -236,20 +237,14 @@ No accounting, authorization or validation logic was changed.
 
 ### For the hackathon demo
 
-- **README claim not verified.** The README row for `0x1113…5708` says "the worker matched it to its
-  invoice". The local evidence shows that transfer in Needs review as an unknown 5 USDC payment, with no
-  stored payment intent. If the match happened on the Railway deployment, it can't be checked from here:
-  authenticating to a non-local host is outside what this validation may do. Confirm it on Railway, or
-  reword the row to what is verifiable ("paid through `SetraPaymentIntent`, with the invoice reference in
-  the transaction").
 - **Contracts not configured locally.** Local `.env` has no Payment Intent or books contract address.
   The local stack therefore doesn't ingest `PaymentIntentPaid` events, and the books page shows no
   contract. Railway gets both from `deploy/railway/setup-variables.sh`.
 - **Books v2 unused on chain.** The `publish` function has no on-chain use yet. The only on-chain
   attestation is v1, for a different workspace than local Acme.
-- **Stray test user.** One user row, `e2e+9ed55bf3@acme.test` with no organization, was created in
-  `setra_dev` when an e2e run was accidentally pointed at the dev API. It doesn't affect Acme. It was left
-  in place pending your decision.
+- **Browser-test records.** Flagship runs create `e2e+…@acme.test` users and isolated organizations in
+  `setra_dev`. They cannot access or appear inside Acme, but a future harness improvement should create
+  and reset a dedicated browser-test database automatically.
 - **Seti phrasing.** "bill Nova 500 for consulting" reads "Nova 500" as the customer and asks for the
   amount. That's safe (bare numbers are never taken as amounts), but awkward in a live demo.
 
@@ -260,12 +255,6 @@ No accounting, authorization or validation logic was changed.
 - **Polling.** An idle console tab makes 11 to 17 API requests per 30 s (notifications and the visible
   list every 5 s). That's fine for a few users; revisit before many concurrent tabs.
 - **Touch targets.** Radio buttons and checkboxes are 16 px, inside larger clickable labels.
-- **On-chain e2e timeout.** The suite needs more than its 180 s timeout on this machine, because
-  `next dev` compiles each page on first visit (30 to 65 s). It passes with a longer budget.
-- **Fastify warnings.** Hundreds of `FSTWRN001` warnings per start come from `route()` setting
-  `body`/`querystring`/`params` schemas to `undefined`. They're harmless (zod validates in the handler),
-  but they bury real warnings.
-- **Rust tests.** Sidecar tests don't run on this machine without the zstd library.
 - **Accounting method.** It's chosen in accounting settings, not in the onboarding flow.
 
 ### For production
@@ -289,6 +278,9 @@ No accounting, authorization or validation logic was changed.
 | `apps/web/src/app/pay/[token]/page.tsx` | D4 (`Copyable`) |
 | `apps/web/src/components/app-ui.tsx` | D4 (`Alert`) |
 | `apps/web/src/components/assistant.tsx` | D4 |
+| `apps/api/src/lib/route.ts` | Omit absent Fastify schema keys instead of registering them as `undefined` |
+| `playwright.config.ts`, `playwright.onchain.config.ts` | Alternate-port support, matching CSRF origin and installed Chrome support |
+| `scripts/ui-audit.mjs` | Installed Chrome support and correct exclusion of `aria-hidden` form shims |
 | `docs/status.md`, `docs/smart-contract.md`, `docs/demo.md`, `docs/pilot.md`, `.env.example` | D5 |
 | `docs/end-to-end-validation.md` | This report |
 
@@ -302,11 +294,11 @@ Secrets are omitted. The QA-only scripts live outside the repository.
 | Command | Exit |
 |---|---|
 | `npm run typecheck` | 0 |
-| `npm test` | 0 (313/313) |
+| `npm test` | 0 (342/342) |
 | `npm run test:contracts` / `forge test -vv` | 0 (45/45) |
 | `forge test --gas-report` | 0 |
 | `slither .` (contracts) | 255 (2 expected timestamp findings) |
-| `cargo test --offline` (services/execution-events) | 101 (zstd library missing) |
+| `cargo test --offline` with documented zstd paths (services/execution-events) | 0 (12/12) |
 | execution-events release binary, snapshot replay | 0 |
 | `npm run build -w @setra/api`, `-w @setra/worker` | 0, 0 |
 | `NEXT_DIST_DIR=.next-verify npx next build` (before fixes) | 0 |
@@ -315,9 +307,8 @@ Secrets are omitted. The QA-only scripts live outside the repository.
 | `tsx packages/database/src/migrate.ts` against `setra_e2e` | 0 |
 | `E2E_BASE_URL=http://localhost:3200 E2E_BROWSER_CHANNEL=chrome npx playwright test`, first run | 1 (D1) |
 | same, final run | 0 (5/5) |
-| on-chain e2e, default 180 s timeout | 1 (timeout during `next dev` compiles) |
-| on-chain e2e, 600 s timeout | 0 (1/1) |
+| `E2E_BROWSER_CHANNEL=chrome npm run test:e2e:onchain` | 0 (1/1, 2.4 min) |
 | journey suite, desktop/tablet/mobile | 0 (15/15) after fixes |
-| UI audit on Acme, before and after fixes | 0 both times (174 loads) |
+| UI audit regression pass on 10 representative routes, 3 widths | 0; affected pages rerun clean after fixes |
 | testnet receipt verification script (read-only RPC) | 0 (5/5 match) |
 | mainnet and testnet configuration checks (read-only RPC) | 0 |

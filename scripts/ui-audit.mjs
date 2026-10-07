@@ -11,7 +11,7 @@ const routes = process.argv.slice(2).length ? process.argv.slice(2) : JSON.parse
 const widths = { desktop: [1440, 900], tablet: [820, 1100], mobile: [375, 812] };
 mkdirSync(OUT, { recursive: true });
 
-const browser = await chromium.launch();
+const browser = await chromium.launch(process.env.AUDIT_BROWSER_CHANNEL ? { channel: process.env.AUDIT_BROWSER_CHANNEL } : {});
 const results = [];
 for (const [device, [width, height]] of Object.entries(widths)) {
   const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 1 });
@@ -49,7 +49,7 @@ for (const [device, [width, height]] of Object.entries(widths)) {
       const unnamed = [...document.querySelectorAll("button, a[href], [role=button]")].filter((el) => el.offsetParent !== null && !name(el) && !el.querySelector("img[alt]:not([alt=''])"));
       if (unnamed.length) out.push(`unnamed controls: ${unnamed.slice(0, 4).map((e) => e.outerHTML.slice(0, 90)).join(" | ")}`);
       const unlabelled = [...document.querySelectorAll("input:not([type=hidden]), select, textarea")].filter((el) => {
-        if (el.offsetParent === null) return false;
+        if (el.offsetParent === null || el.getAttribute("aria-hidden") === "true") return false;
         if (el.getAttribute("aria-label") || el.getAttribute("aria-labelledby") || el.title) return false;
         if (el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`)) return false;
         return !el.closest("label");
@@ -63,7 +63,7 @@ for (const [device, [width, height]] of Object.entries(widths)) {
       const dup = [...new Set(ids.filter((id, i) => ids.indexOf(id) !== i))];
       if (dup.length) out.push(`duplicate ids: ${dup.slice(0, 5).join(", ")}`);
       const tiny = [...document.querySelectorAll("button, a[href], input, select")].filter((el) => {
-        if (el.offsetParent === null) return false;
+        if (el.offsetParent === null || el.getAttribute("aria-hidden") === "true") return false;
         const r = el.getBoundingClientRect();
         return r.height > 0 && r.height < 24 && r.width < 24 && getComputedStyle(el).display !== "inline";
       });

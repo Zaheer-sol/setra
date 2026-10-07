@@ -21,12 +21,13 @@
   "include": [
     ".next-build/types/**/*.ts",
     ".next-e2e/types/**/*.ts",
+    ".next-qa/types/**/*.ts",
+    ".next-turbo/types/**/*.ts",
     ".next-verify/types/**/*.ts",
     ".next/types/**/*.ts",
     "next-env.d.ts",
     "src/**/*.ts",
-    "src/**/*.tsx",
-    ".next-turbo/types/**/*.ts"
+    "src/**/*.tsx"
   ],
   "exclude": [
     "node_modules"

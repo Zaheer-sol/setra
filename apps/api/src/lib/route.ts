@@ -68,9 +68,9 @@ export function route<B extends ZodType = ZodType, Q extends ZodType = ZodType, 
     schema: {
       summary: def.summary,
       tags: def.tags,
-      body: def.body ? toSchema(def.body) : undefined,
-      querystring: def.query ? toSchema(def.query) : undefined,
-      params: def.params ? toSchema(def.params) : undefined,
+      ...(def.body ? { body: toSchema(def.body) } : {}),
+      ...(def.query ? { querystring: toSchema(def.query) } : {}),
+      ...(def.params ? { params: toSchema(def.params) } : {}),
       security: def.sessionOnly ? [{ session: [] }] : [{ bearer: [] }, { session: [] }]
     } as never,
     config: { idempotent: def.idempotent ?? false, ...(def.rateLimit ? { rateLimit: def.rateLimit } : {}) }

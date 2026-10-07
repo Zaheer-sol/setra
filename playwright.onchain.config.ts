@@ -14,7 +14,16 @@ export default defineConfig({
   workers: 1,
   reporter: [["list"]],
   use: { baseURL: "http://localhost:3102", trace: "retain-on-failure", viewport: { width: 1440, height: 900 } },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } }],
+  projects: [
+    {
+      name: "chromium",
+      use: {
+        ...devices["Desktop Chrome"],
+        ...(process.env.E2E_BROWSER_CHANNEL === "chrome" ? { channel: "chrome" as const } : {}),
+        viewport: { width: 1440, height: 900 }
+      }
+    }
+  ],
   webServer: {
     command: "npx tsx e2e/onchain/stack.ts",
     url: "http://localhost:3102/login",

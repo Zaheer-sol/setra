@@ -2,7 +2,7 @@
   "name": "setra",
   "version": "0.1.0",
   "private": true,
-  "description": "Setra \u2014 stablecoin payment operations on Monad. The financial event layer for onchain commerce.",
+  "description": "Setra: invoices, payments and automatic books for businesses paid in USDC on Monad.",
   "type": "module",
   "workspaces": [
     "apps/*",
@@ -19,7 +19,7 @@
     "test:unit": "vitest run --project unit",
     "test:integration": "vitest run --project integration",
     "test:contracts": "cd contracts && forge test",
-    "test:e2e": "playwright test",
+    "test:e2e": "npm run build -w @setra/web && playwright test",
     "db:migrate": "tsx packages/database/src/migrate.ts",
     "db:seed": "tsx packages/database/src/seed.ts && tsx packages/database/src/seed-books.ts",
     "db:seed:books": "tsx packages/database/src/seed-books.ts",

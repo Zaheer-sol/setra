@@ -1,6 +1,6 @@
 # Verification results
 
-Recorded on 2026-09-27 on macOS, Node 24.18, PostgreSQL 17 (Docker), Foundry 1.6. Last full run after the final hardening pass.
+Recorded on 2026-10-05 on macOS, Node 24.18, PostgreSQL 17 (Docker), Foundry 1.6. Last full run after the final hardening pass.
 
 | Suite | Command | Result |
 |---|---|---|
@@ -18,12 +18,12 @@ Recorded on 2026-09-27 on macOS, Node 24.18, PostgreSQL 17 (Docker), Foundry 1.6
 | Corrections, refunds, sending (reassign with history, unassign back to review, partial follow-ups, refusal rules, refund of a duplicate / overpaid excess / partial then full, proof rules, reconciliation, email with recipient rules) | `apps/api/test/corrections.test.ts` | **9 passed** |
 | Assistant parser (every example phrase, ambiguity inputs, hostile text, amounts, due dates and periods across time zones) | `apps/api/src/assistant/parse.unit.test.ts` | **36 passed** |
 | Assistant and notifications (create with confirmation, idempotent double confirm, audit channel, ambiguous customers, missing fields, new customer, missing wallet, cancel/expiry, viewer role, “did they pay?”, backend totals, outstanding/overdue/review/find, accounting record, correction, notification cards for received/partial/overpaid/duplicate/unknown with unread state, test/live isolation, workspace isolation, hostile text, API keys refused) | `apps/api/test/assistant.test.ts` | **18 passed** |
-| **Total TypeScript** | `npm test` | **235 passed, 0 failed** (92 unit, 143 integration) |
-| Sidecar (tracker: log index, reverted txns, sequence gaps, expired payloads, incomplete blocks, commit states, bursts, determinism; filter) | `cd services/execution-events && cargo test` | **12 passed** |
+| **Total TypeScript** | `npm test` | **342 passed, 0 failed** across 31 files |
+| Sidecar (tracker: log index, reverted txns, sequence gaps, expired payloads, incomplete blocks, commit states, bursts, determinism; filter) | `cd services/execution-events && CPATH=<zstd>/include LIBRARY_PATH=<zstd>/lib BINDGEN_EXTRA_CLANG_ARGS=-I<zstd>/include cargo test --offline` | **12 passed** |
 | Sidecar on the SDK's real execution-event snapshot vs canonical Ethereum RPC | `scripts/validate-snapshot.mjs` | **511/511 USDC transfers identical**, 0 missed, 0 gaps; 136,891 events in 23–35 ms |
-| Smart contract (unit, fuzz ×3 @1,000 runs, invariants ×4 @256×64) | `npm run test:contracts` | **32 passed, 0 failed** |
+| Smart contracts (PaymentIntent and BooksAttestation unit, fuzz and invariants) | `npm run test:contracts` | **45 passed, 0 failed** |
 | Static analysis | `slither src/SetraPaymentIntent.sol`, `forge lint` | 2 findings, both intended `block.timestamp` expiry checks |
-| End-to-end through the real UI (Playwright, Chromium) | `npm run test:e2e` | **3 passed**: flagship signup→export (purpose shown to the payer before paying and on the payment after); partial→resolve; unknown→assign. These use test-mode simulated payments through the real pipeline |
+| End-to-end through the real UI (Playwright, Chrome) | `E2E_BROWSER_CHANNEL=chrome npm run test:e2e` | **5 passed**: flagship signup→export; partial→resolve; unknown→assign; reload recovery; phone-width payment links and one-time secrets. Test payments use the real application pipeline and are explicitly labelled simulated |
 | **End-to-end with real transactions** (isolated stack: fresh database, Anvil node with real USDC + SetraPaymentIntent contracts, real API, worker and web) | `npm run test:e2e:onchain` | **1 passed**: payer sees purpose and items → signed ERC-20 transfer → worker detects and finalizes → pay page "Payment received" → console shows purpose and the real block → signed `payment.matched` webhook verified → real duplicate transfer flagged with the original's context → merchant's real refund transfer ingested → refund recorded through the UI → `payment.refunded` delivered. No simulation anywhere |
 | Live Monad testnet end-to-end (opt-in; your own funded testnet key) | `npm run test:e2e:live` | written; skipped without `E2E_TESTNET_PAYER_KEY` / `E2E_TESTNET_MERCHANT`. Not run here (no key handled) |
 | Typecheck | `npm run typecheck` | all workspaces clean |
@@ -87,8 +87,10 @@ view, marketing, docs, auth, the hosted payment page in its open, paid, cancelle
 not-found states, a 404) at 1440×900, 820×1100 and 375×812. Checks: horizontal overflow (with the
 offending element), console errors and 5xx responses, unnamed controls, unlabelled inputs, images
 without alt, heading structure, duplicate ids, target size, stray em dashes, `undefined`/`NaN`.
-**Final result: no findings** except native radio inputs on the test-payments page, which sit inside
-clickable labels.
+**2026-10-05 regression result:** 10 representative routes × 3 widths, then the two affected routes
+again after fixes. No overflow, console/5xx, labelling, heading, duplicate-id or target-size findings.
+The audit now ignores `aria-hidden` native form shims. The homepage code-copy control was enlarged from
+its compact 24 px treatment to a 32 px target. The earlier full 40-route audit remains recorded below.
 
 Fixed in this pass:
 - Docs navigation overflowed on phones (up to 723 px wide); grid tracks could not shrink.
