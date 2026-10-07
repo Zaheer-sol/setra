@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { MoreHorizontal, Plus, RotateCcw, Send, Webhook } from "lucide-react";
 import { useSession } from "@/components/session";
@@ -11,6 +12,21 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { api, qs, useApi, type ApiError } from "@/lib/api";
 import { dateTime, timeAgo } from "@/lib/format";
 import { WEBHOOK_EVENT_TYPES } from "@setra/schemas";
+
+// Setra's servers deliver from the internet, so a local or private address can never receive events
+// (fine while developing locally, where the console itself runs on localhost).
+const PRIVATE_HOST = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|\[?::1\]?$|0\.0\.0\.0)|\.local$/;
+function unreachable(url: string): string | null {
+  if (typeof window !== "undefined" && PRIVATE_HOST.test(window.location.hostname)) return null;
+  try {
+    const u = new URL(url);
+    if (PRIVATE_HOST.test(u.hostname)) return "This is a local address. Setra's servers can't reach it, so every delivery fails. Replace it with your public HTTPS address.";
+    if (u.protocol !== "https:") return "Setra only delivers to HTTPS addresses. Switch this endpoint to https://.";
+  } catch {
+    return "This address isn't a valid URL.";
+  }
+  return null;
+}
 
 const DELIVERY_TONE: Record<string, "success" | "warning" | "danger" | "info" | "neutral"> = { delivered: "success", retrying: "warning", failed: "danger", pending: "info", delivering: "info" };
 
@@ -71,7 +87,9 @@ export default function WebhooksPage() {
                     {!e.enabled && <Badge>Disabled</Badge>}
                     {e.failed_deliveries > 0 && <Badge tone="danger">{e.failed_deliveries} failed</Badge>}
                     {e.rotating_until && <Badge tone="info">Rotating secret</Badge>}
+                    {unreachable(e.url) && <Badge tone="warning">Can&apos;t be reached</Badge>}
                   </div>
+                  {unreachable(e.url) && <p className="mt-[4px] text-sm text-warning">{unreachable(e.url)}</p>}
                   <p className="text-muted-foreground text-sm mt-[4px]">
                     {e.description ? `${e.description} · ` : ""}
                     {e.event_types.join(", ")}
@@ -158,6 +176,23 @@ export default function WebhooksPage() {
             </TableBody>
           </Table>
         )}
+      </Card>
+
+      <Card title="Receiving events" description="What your developer needs to accept Setra's messages. Full details and copy-paste code in the webhooks docs.">
+        <dl className="grid gap-3 px-6 py-5 text-sm max-md:px-4 sm:grid-cols-[180px_minmax(0,1fr)]">
+          <dt className="font-medium">Request</dt>
+          <dd className="text-muted-foreground">A <code className="font-mono text-[0.9em]">POST</code> with a JSON body to your HTTPS address. Reply with any 2xx within 10 seconds.</dd>
+          <dt className="font-medium">Headers</dt>
+          <dd className="text-muted-foreground"><code className="font-mono text-[0.9em]">X-Setra-Event-Type</code>, <code className="font-mono text-[0.9em]">X-Setra-Event-Id</code>, <code className="font-mono text-[0.9em]">X-Setra-Timestamp</code>, <code className="font-mono text-[0.9em]">X-Setra-Signature</code></dd>
+          <dt className="font-medium">Signature</dt>
+          <dd className="text-muted-foreground"><code className="font-mono text-[0.9em]">v1=</code> HMAC-SHA256 of <code className="font-mono text-[0.9em]">timestamp.rawBody</code> with the endpoint&apos;s signing secret. Reject anything older than 5 minutes.</dd>
+          <dt className="font-medium">Retries</dt>
+          <dd className="text-muted-foreground">Anything other than 2xx is retried for about a day and a half (30 s, 1 m, 2 m, up to every 6 hours). Reply 410 to stop.</dd>
+          <dt className="font-medium">Duplicates</dt>
+          <dd className="text-muted-foreground">A retry or replay can deliver the same event twice. Ignore an <code className="font-mono text-[0.9em]">X-Setra-Event-Id</code> you&apos;ve already handled.</dd>
+          <dt className="font-medium">Try it</dt>
+          <dd className="text-muted-foreground">Add your endpoint, then <strong>Send test</strong>. A <code className="font-mono text-[0.9em]">webhook.test</code> event arrives signed exactly like a real one. <Link href="/docs/webhooks" target="_blank" className="text-primary hover:underline">Read the webhooks docs</Link></dd>
+        </dl>
       </Card>
 
       <CreateEndpointModal open={creating} onClose={() => setCreating(false)} onCreated={(s) => { setSecret({ label: "Signing secret", secret: s }); setCreating(false); mutate(); }} />

@@ -40,24 +40,30 @@ export default function DevelopersMarketingPage() {
             ]}
           />
           <CodeBlock
-            code={`// 1. Create the invoice (idempotent)
-const invoice = await setra.invoices.create({
-  customer_id: "cus_01J9…",
-  number: "INV-2041",
-  amount: "2000.00",           // decimal strings, never floats
-  asset: "USDC",
-  network: "monad",
-}, { idempotencyKey: order.id });
+            code={`// 1. Send Setra the order (safe to repeat: same ID, same result)
+const res = await fetch("https://setra.up.railway.app/api/v1/orders", {
+  method: "POST",
+  headers: {
+    Authorization: \`Bearer \${process.env.SETRA_API_KEY}\`,
+    "Idempotency-Key": \`order-\${order.id}\`,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    external_id: order.id,
+    amount: "2000.00",          // decimal strings, never floats
+    customer: { external_ref: order.customerId, email: order.email },
+  }),
+});
+const { invoice } = await res.json();
+redirect(invoice.payment_url);   // or let them pay your wallet directly
 
-redirect(invoice.payment_url);
-
-// 2. React when it's paid
-app.post("/webhooks/setra", raw(), (req, res) => {
-  if (!verifySetraWebhook(secret, req.body,
+// 2. React when it's paid (verifySetraWebhook: 10 lines, in the webhooks docs)
+app.post("/webhooks/setra", express.raw({ type: "application/json" }), (req, res) => {
+  if (!verifySetraWebhook(process.env.SETRA_WEBHOOK_SECRET, req.body.toString(),
       req.get("x-setra-timestamp"), req.get("x-setra-signature")))
     return res.sendStatus(400);
   const event = JSON.parse(req.body);
-  if (event.type === "payment.matched") fulfil(event.data.invoice.number);
+  if (event.type === "payment.matched") fulfil(event.data.invoice.external_id);
   res.sendStatus(200);
 });`}
           />

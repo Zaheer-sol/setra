@@ -313,7 +313,16 @@ export function verifySetraWebhook(secret, rawBody, timestamp, header, tolerance
   });
 }
 `}</Code>
-        <p>Always verify against the <strong>raw</strong> request body, before parsing JSON. The same function ships in <code>@setra/sdk</code>.</p>
+        <p>Always verify against the <strong>raw</strong> request body, before parsing JSON. Copy the function into your project; there is nothing to install. The same check in Python:</p>
+        <Code>{`
+import hashlib, hmac, time
+
+def verify_setra_webhook(secret: str, raw_body: bytes, timestamp: str, header: str, tolerance: int = 300) -> bool:
+    if not timestamp or not header or abs(time.time() - int(timestamp)) > tolerance:
+        return False
+    expected = hmac.new(secret.encode(), f"{timestamp}.".encode() + raw_body, hashlib.sha256).hexdigest()
+    return any(hmac.compare_digest(part.strip().removeprefix("v1="), expected) for part in header.split(","))
+`}</Code>
         <h2>Retries</h2>
         <p>Any non-2xx response or timeout (10s) is retried with exponential backoff and jitter, roughly 30s, 1m, 2m, 4m … capped at 6 hours, up to 10 attempts. Return <code>410 Gone</code> to stop retries. A delivery is marked <em>delivered</em> only after an actual 2xx response.</p>
         <h2>Idempotency on your side</h2>

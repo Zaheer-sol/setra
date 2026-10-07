@@ -59,7 +59,17 @@ export default function DevelopersPage() {
         <Card title="2. React to payment.matched" description="Verify the signature, then fulfil the order.">
           <div className="px-6 py-5 max-md:px-4">
             <CodeBlock
-              code={`import { verifySetraWebhook } from "@setra/sdk";
+              code={`import { createHmac, timingSafeEqual } from "node:crypto";
+
+// Nothing to install: check the signature with Node's own crypto.
+function verifySetraWebhook(secret, rawBody, timestamp, header) {
+  if (!timestamp || !header || Math.abs(Date.now() / 1000 - Number(timestamp)) > 300) return false;
+  const expected = createHmac("sha256", secret).update(\`\${timestamp}.\${rawBody}\`).digest();
+  return header.split(",").some((part) => {
+    const sig = Buffer.from(part.trim().replace(/^v1=/, ""), "hex");
+    return sig.length === expected.length && timingSafeEqual(sig, expected);
+  });
+}
 
 app.post("/setra", express.raw({ type: "application/json" }), (req, res) => {
   const ok = verifySetraWebhook(process.env.SETRA_WEBHOOK_SECRET, req.body.toString(),
