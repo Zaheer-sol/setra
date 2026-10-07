@@ -39,10 +39,12 @@ interface Message { id: string | null; role: "user" | "assistant"; text: string;
 const timezone = () => (typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC");
 
 const SUGGESTIONS = [
+  "What should I focus on today?",
   "How much profit did we make this month?",
   "How much cash do we have?",
   "What do we owe vendors?",
   "Did Acme Ltd pay?",
+  "What does reconciliation mean?",
   "Create a $250 USDC payment request for Acme Ltd for website development, due Friday",
   "Are the books in order?"
 ];
@@ -72,7 +74,7 @@ export function AssistantProvider({ children }: { children: ReactNode }) {
       <Sheet open={open && pathname !== "/app/assistant"} onOpenChange={setOpen}>
         <SheetContent side="right" className="w-full gap-0 border-l-0 bg-background p-0 shadow-overlay sm:max-w-[480px] [&>button]:hidden">
           <SheetTitle className="sr-only">Seti</SheetTitle>
-          <SheetDescription className="sr-only">Create payment requests and ask about your payments.</SheetDescription>
+          <SheetDescription className="sr-only">Ask about your payments, accounting records and financial position.</SheetDescription>
           <AssistantPanel onClose={() => setOpen(false)} />
         </SheetContent>
       </Sheet>
@@ -190,10 +192,10 @@ export function AssistantPanel({ onClose, full = false }: { onClose?: () => void
               <Seti mood="welcome" size={92} priority />
               <div className="mb-2 rounded-[18px_18px_18px_6px] bg-card px-3.5 py-2.5 shadow-card">
                 <p className="font-semibold">Hi, I&rsquo;m Seti.</p>
-                <p className="text-sm text-muted-foreground">What can I help you with today?</p>
+                <p className="text-sm text-muted-foreground">Ask me the way you would ask your accountant.</p>
               </div>
             </div>
-            <p className="mb-3 text-sm text-foreground/80">Create payment requests and ask about your payments in plain language. Anything that creates a record asks you to confirm first.</p>
+            <p className="mb-3 text-sm text-foreground/80">I can explain a payment, summarize cash and profit, check what customers owe, review vendor balances and prepare a payment request. Every figure comes from Setra. I ask before changing a financial record.</p>
             <motion.div className="flex flex-wrap gap-1.5" initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06, delayChildren: 0.1 } } }}>
               {SUGGESTIONS.map((s) => (
                 <motion.div key={s} variants={{ hidden: { opacity: 0, y: 8, scale: 0.96 }, show: { opacity: 1, y: 0, scale: 1 } }}>
@@ -256,7 +258,7 @@ export function AssistantPanel({ onClose, full = false }: { onClose?: () => void
           rows={1}
           maxLength={2000}
           value={text}
-          placeholder="Ask about payments or your books, or describe a payment request…"
+          placeholder="Ask about the business or describe a payment request…"
           aria-label="Message Seti"
           className="max-h-[140px] min-h-[38px] flex-1 resize-none rounded-[19px] px-3.5 py-2"
           onChange={(e) => setText(e.target.value)}
@@ -354,7 +356,7 @@ const Amount = ({ children }: { children: ReactNode }) => <span className="tabul
 function BlockView({ block: b, onChoose, onDecide, resolved, busy }: { block: Block; onChoose: (label: string, value: string) => void; onDecide: (id: string, d: "confirm" | "cancel") => void; resolved: Record<string, string>; busy: boolean }) {
   switch (b.type) {
     case "text":
-      return <p className="break-words">{b.text}</p>;
+      return <p className="break-words whitespace-pre-wrap">{b.text}</p>;
     case "notice":
       return (
         <ACard tone={b.tone}>

@@ -136,6 +136,8 @@ describe("financial questions", () => {
     expect(p("Are the books in order?")).toMatchObject({ kind: "fin_health" });
     expect(p("How much did we spend on software this quarter?")).toMatchObject({ kind: "fin_spend", category: "software", period: "quarter" });
     expect(p("what needs classifying")).toMatchObject({ kind: "fin_unclassified" });
+    expect(p("What should I focus on today?")).toEqual({ kind: "fin_briefing" });
+    expect(p("Give me a financial briefing")).toEqual({ kind: "fin_briefing" });
   });
   it("prepares expenses and vendor bills, but 'bill Acme' is still a payment request", () => {
     expect(p("Record a $49 expense for Vercel hosting paid from the bank")).toMatchObject({ kind: "record_expense", amount: "49.00", title: "Vercel hosting", paidFrom: "bank" });

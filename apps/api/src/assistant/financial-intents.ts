@@ -53,6 +53,8 @@ export async function financial(ctx: AssistantContext, intent: Intent): Promise<
       return health(ctx);
     case "fin_unclassified":
       return unclassified(ctx);
+    case "fin_briefing":
+      return briefing(ctx);
     case "record_expense":
       return recordExpense(ctx, intent);
     case "record_bill":
@@ -237,6 +239,54 @@ async function unclassified(ctx: AssistantContext): Promise<Reply> {
     intent: "fin_unclassified",
     pending: null,
     blocks: [{ type: "summary", title: "Needs a decision", rows: [["Received, not identified", `${u.receipts.length} (${usd(sum(u.receipts))})`], ["Sent, not classified", `${u.outgoing.length} (${usd(sum(u.outgoing))})`]], highlight: { label: "Waiting", value: String(u.receipts.length + u.outgoing.length) }, note: "Held in holding accounts. Never counted as income or spending until you decide.", link: { label: "Decide now", href: "/app/accounting/classify" } }]
+  };
+}
+
+/** A compact CFO-style briefing: facts from the ledger, collections and payment operations together. */
+async function briefing(ctx: AssistantContext): Promise<Reply> {
+  const range = finRange("month", ctx.now, ctx.tz);
+  const [overview, accounts, p, h] = await Promise.all([
+    api(ctx, "GET", "/v1/overview?period=today"),
+    api<{ data: Any[] }>(ctx, "GET", "/v1/accounting/accounts"),
+    pl(ctx, range.from, range.to),
+    api(ctx, "GET", "/v1/accounting/health")
+  ]);
+  const byKey = (key: string) => accounts.data.find((a) => a.system_key === key)?.balance ?? "0.00";
+  const cash = accounts.data.filter((a) => a.subtype === "cash").reduce((sum, a) => sum + micro(a.balance), 0n);
+  const bookIssues = h.checks.filter((check: Any) => check.status === "attention");
+  const review = Number(overview.metrics.needs_attention ?? 0);
+  const outstanding = Number(overview.metrics.outstanding_invoices ?? 0);
+  const net = micro(p.net_income);
+
+  let lead: string;
+  if (review > 0) lead = `Start with the ${review} payment${review === 1 ? "" : "s"} waiting for review. Until those are identified, the books may not tell the full story.`;
+  else if (bookIssues.length > 0) lead = `Your first priority is the books: ${bookIssues[0]!.label.toLowerCase()} needs attention.`;
+  else if (outstanding > 0) lead = `Collections are the main item today: ${outstanding} payment request${outstanding === 1 ? " is" : "s are"} still open.`;
+  else if (net < 0n) lead = `Payments and books are clear, but the business is showing a net loss ${lc(range.label)}. Review the largest expense lines next.`;
+  else lead = "Nothing urgent is blocking the books. Payments are classified and the ledger checks are passing.";
+
+  return {
+    intent: "fin_briefing",
+    pending: null,
+    blocks: [
+      { type: "text", text: lead },
+      {
+        type: "summary",
+        title: "Financial briefing",
+        rows: [
+          ["Cash recorded", usd(dec(cash))],
+          ["Customers owe you", usd(byKey("accounts_receivable"))],
+          ["You owe vendors", usd(byKey("accounts_payable"))],
+          ["Received today", `${usd(overview.metrics.received)} across ${overview.metrics.payments} payment${overview.metrics.payments === 1 ? "" : "s"}`],
+          ["Open payment requests", `${outstanding} (${usd(overview.metrics.outstanding)})`],
+          ["Payments needing review", `${review} (${usd(overview.metrics.needs_attention_amount)})`],
+          ["Book checks", bookIssues.length ? `${bookIssues.length} need attention` : `All ${h.checks.length} passing`]
+        ],
+        highlight: { label: `Net income · ${lc(range.label)}`, value: usd(p.net_income) },
+        note: "Based on posted journal entries and Setra's current payment records.",
+        link: { label: "Open overview", href: "/app" }
+      }
+    ]
   };
 }
 

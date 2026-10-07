@@ -42,10 +42,12 @@ export type Intent =
   | { kind: "fin_payables" }
   | { kind: "fin_health" }
   | { kind: "fin_unclassified" }
+  | { kind: "fin_briefing" }
   | { kind: "record_expense"; amount?: string; title?: string; vendor?: string; paidFrom?: "bank" | "owner" }
   | { kind: "close_period"; month?: number; year?: number; last?: boolean }
   | { kind: "record_bill"; amount?: string; vendor?: string; title?: string; number?: string; due?: DueSpec }
   | { kind: "who_sent"; amount?: string }
+  | { kind: "guidance"; answer: string }
   | { kind: "help" }
   | { kind: "unknown" };
 
@@ -316,6 +318,7 @@ function parseFinancial(original: string, t: string): Intent | null {
   // "…than last month" names what to compare against, not the period asked about.
   const against = /\b(?:than|from|vs\.?|versus|compared (?:to|with))\s+(?:the\s+)?(?:last|previous|prior)\s+(month|quarter|year)\b/.exec(t)?.[1];
   const p = against ? ({ month: "month", quarter: "quarter", year: "year" } as const)[against as "month"] : finPeriod(t);
+  if (/\b(what should (?:i|we) (?:focus on|look at|do)(?: today| first)?|give me (?:a |the )?(?:financial|business|finance) (?:briefing|overview|snapshot)|(?:financial|business|finance) briefing|morning briefing|what needs my attention)\b/.test(t)) return { kind: "fin_briefing" };
   if (/\bwhy\b.*\b(profit|revenue|income|expenses?|spending|costs?|margin|earnings)\b|\bcompare(?:d)?\b.*\b(month|year|quarter|last)\b|\b(profit|revenue|expenses?|income)\b.*\b(vs\.?|versus|compared (?:to|with))\b|\bwhat changed\b/.test(t)) return { kind: "fin_compare", period: p ?? "month" };
   if (/\b(are|is)\s+(?:the|my|our)\s+books\b|\bbooks?\s+(?:ok|okay|balanced?|right|correct|healthy|clean|in order)\b|\breconcil(?:e|ed|iation)\b.*\b(books|ledger|accounts?)\b|\btrial balance\b|\bdo (?:the )?books (?:balance|agree)\b/.test(t)) return { kind: "fin_health" };
   if (/\b(unclassified|to classify|needs? classif\w*|uncategori[sz]ed)\b/.test(t)) return { kind: "fin_unclassified" };

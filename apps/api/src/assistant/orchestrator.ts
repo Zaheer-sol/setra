@@ -6,7 +6,7 @@ import { ASSISTANT_TOKEN } from "../lib/internal";
 import type { Permission } from "../lib/principal";
 import type { Block, InvoiceCard, Link, PaymentCard, Row } from "./blocks";
 import { applyFinancialAction, financial } from "./financial-intents";
-import { understand } from "./language-model";
+import { understand, type ConversationTurn } from "./language-model";
 import { pick, speak } from "./voice";
 import { clean, findAmount, normalizeAmount, parseIntent, periodStart, resolveDue, titleCase, type Intent, type Period } from "./intent-parser";
 
@@ -50,6 +50,8 @@ export interface AssistantContext {
   messageId: string;
   conversationId: string;
   pending: Pending | null;
+  /** Recent conversation only; no balances or customer records are sent to the language model. */
+  history?: ConversationTurn[];
 }
 
 export interface Reply {
@@ -207,11 +209,12 @@ function paymentNote(p: Any): string | undefined {
 }
 
 const HELP: Block[] = [
-  { type: "text", text: "Hi, I'm Seti. Ask me about your payments, invoices and books, or tell me who to bill and I'll set it up for you to confirm. A few ideas:" },
+  { type: "text", text: "Hi, I'm Seti. Ask about the business in plain language, or tell me who to bill and I'll prepare the request for your confirmation." },
   {
     type: "choice",
-    prompt: "Try",
+    prompt: "For example",
     options: [
+      { label: "What should I focus on today?", value: "@text" },
       { label: "How much profit did we make this month?", value: "@text" },
       { label: "Why is profit different from last month?", value: "@text" },
       { label: "How much cash do we have?", value: "@text" },
@@ -226,18 +229,19 @@ const HELP: Block[] = [
 
 // When a message isn't understood: short, a little varied, and four things worth trying.
 const UNKNOWN = [
-  "Sorry, I didn't catch that. I can help with payments, invoices and your books. Try one of these:",
-  "Hmm, I didn't catch that one. Ask me about payments, invoices or your books, like:",
-  "I didn't catch that, sorry. Here are a few things I can do:"
+  "I'm not sure which record or accounting question you mean. Name a payment, customer, invoice or part of the books, or choose an example below.",
+  "I need a little more financial context. Tell me which payment, customer or accounting question to check, or choose an example below.",
+  "I couldn't connect that request to a Setra record or accounting question. Choose an example below to get started."
 ];
 const SUGGEST: Block = {
   type: "choice",
-  prompt: "Try",
+  prompt: "For example",
   options: [
+    { label: "What should I focus on today?", value: "@text" },
     { label: "What's outstanding?", value: "@text" },
     { label: "How much cash do we have?", value: "@text" },
     { label: "Anything that needs review?", value: "@text" },
-    { label: "Create a $250 USDC payment request for Acme Ltd for website development", value: "@text" }
+    { label: "What does reconciliation mean?", value: "@text" }
   ]
 };
 
@@ -280,8 +284,8 @@ async function respondInner(ctx: AssistantContext, text: string, choice?: string
     if (continued) return continued;
   }
 
-  // Rules first; the optional language model only for messages they don't understand.
-  const intent = await understand(text);
+  // The model understands ordinary conversation; deterministic rules remain the reliable fallback.
+  const intent = await understand(text, undefined, ctx.history ?? []);
   switch (intent.kind) {
     case "create_request":
       return createFlow(ctx, draftFrom(ctx, intent));
@@ -309,6 +313,8 @@ async function respondInner(ctx: AssistantContext, text: string, choice?: string
       return whoSent(ctx, intent.amount);
     case "help":
       return { intent: "help", pending: null, blocks: HELP };
+    case "guidance":
+      return { intent: "guidance", pending: null, blocks: [{ type: "text", text: intent.answer }] };
     case "fin_pl":
     case "fin_compare":
     case "fin_spend":
@@ -316,6 +322,7 @@ async function respondInner(ctx: AssistantContext, text: string, choice?: string
     case "fin_payables":
     case "fin_health":
     case "fin_unclassified":
+    case "fin_briefing":
     case "record_expense":
     case "record_bill":
     case "close_period":

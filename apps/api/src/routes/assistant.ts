@@ -43,6 +43,21 @@ export function assistantRoutes(app: FastifyInstance) {
     handler: async ({ body, request, principal, organizationId, environment, tx }) => {
       if (principal.kind !== "user") throw new Error("unreachable");
       const conversation = await tx((c) => loadConversation(c, organizationId, environment, principal.userId, body.conversation_id));
+      const history = await tx(async (c) => {
+        const rows = (
+          await c.query(
+            "SELECT role, text, intent FROM assistant_messages WHERE conversation_id = $1 ORDER BY created_at DESC, id DESC LIMIT 10",
+            [conversation.id]
+          )
+        ).rows.reverse();
+        return rows
+          .map((row): { role: "user" | "assistant"; content: string } | null => {
+            if (row.role === "user" && row.text) return { role: "user", content: String(row.text).slice(0, 500) };
+            if (row.role === "assistant" && row.intent) return { role: "assistant", content: `Seti handled that as: ${String(row.intent).replace(/_/g, " ")}.` };
+            return null;
+          })
+          .filter((turn): turn is { role: "user" | "assistant"; content: string } => Boolean(turn));
+      });
       const userMessage = await tx((c) => addMessage(c, organizationId, conversation.id, "user", body.text, null, []));
       const ctx: AssistantContext = {
         app,
@@ -55,7 +70,8 @@ export function assistantRoutes(app: FastifyInstance) {
         now: new Date(),
         messageId: userMessage.id,
         conversationId: conversation.id,
-        pending: conversation.pending as Pending | null
+        pending: conversation.pending as Pending | null,
+        history
       };
       const reply = await respond(ctx, body.text, body.choice);
       const saved = await tx(async (c) => {
