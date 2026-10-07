@@ -5,11 +5,11 @@ import { Suspense, useEffect, useState } from "react";
 import { Check, ExternalLink } from "lucide-react";
 import { Alert, Badge, Button, ButtonLink, Chain, CopyButton, Field, fieldErrors, Input, Logo, MoneyInput, Spinner, TextLink } from "@/components/app-ui";
 import { Card } from "@/components/ui/card";
-import { AnimatePresence, EASE, motion } from "@/components/motion";
 import { Seti, type SetiMood } from "@/components/seti";
 import { cn } from "@/lib/utils";
 import { api, newIdempotencyKey, useApi, type ApiError } from "@/lib/api";
 
+const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
 const STEPS = ["Business", "Wallet", "Customer", "Invoice", "Share"] as const;
 // Seti keeps the user company through setup: hello, careful with the wallet, curious about the
 // customer, focused on the invoice, and celebrating when the payment link is ready.
@@ -107,8 +107,8 @@ function Onboarding() {
           </div>
         )}
 
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div key={step} initial={{ opacity: 0, x: 28 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -28 }} transition={{ duration: 0.35, ease: EASE }}>
+        {/* Each step renders at once; a CSS slide (no fade) so a throttled or frozen animation never hides it. */}
+          <div key={step} className="animate-in slide-in-from-right-6 duration-300 motion-reduce:animate-none">
             <Seti mood={STEP_MOOD[step] ?? "welcome"} size={96} className="mb-4" priority />
             {step === 0 && (
               <form
@@ -124,7 +124,7 @@ function Onboarding() {
               >
                 <div>
                   <h1>What&rsquo;s your business called?</h1>
-                  <p className="mt-2 text-[1.0625rem] tracking-[-0.012em] text-muted-foreground">Your workspace brings wallets, books and financial reports together. If you collect payments, customers also see this name.</p>
+                  <p className="mt-2 text-[1.0625rem] tracking-[-0.012em] text-muted-foreground">This name appears across your books and reports. Customers also see it on payment requests.</p>
                 </div>
                 <Field label="Business name" htmlFor="ob-business" error={errs.name}>
                   <Input id="ob-business" className="h-11 rounded-xl text-[1.0625rem]" value={business} onChange={(e) => setBusiness(e.target.value)} autoFocus placeholder="Acme Infrastructure" required />
@@ -142,9 +142,10 @@ function Onboarding() {
                   e.preventDefault();
                   run(async () => {
                     // Coming back to setup (reload, back button) with a wallet already added: carry on with it.
-                    await api("/v1/wallets", { method: "POST", idempotencyKey: keys.wallet, body: { name: wallet.name, network: "monad", address: wallet.address.trim(), assets: ["USDC"] } }).catch((e) => {
-                      if ((e as ApiError).code !== "wallet_exists") throw e;
-                    });
+                    if (wallet.address.trim())
+                      await api("/v1/wallets", { method: "POST", idempotencyKey: keys.wallet, body: { name: wallet.name, network: "monad", address: wallet.address.trim(), assets: ["USDC"] } }).catch((e) => {
+                        if ((e as ApiError).code !== "wallet_exists") throw e;
+                      });
                     if (setup === "books") await finishBooks();
                     else if (setup === "connect") await finishConnect();
                     else setStep(2);
@@ -153,14 +154,14 @@ function Onboarding() {
               >
                 <div>
                   <h1>How would you like to start?</h1>
-                  <p className="mt-2 text-[1.0625rem] tracking-[-0.012em] text-muted-foreground">Keep the way you get paid. Connect a wallet for monitoring, or start your books and add one later.</p>
+                  <p className="mt-2 text-[1.0625rem] tracking-[-0.012em] text-muted-foreground">Choose the first job you want Setra to handle. You can turn on the rest from the console later.</p>
                 </div>
                 <fieldset className="grid gap-2" disabled={busy}>
                   <legend className="mb-2 text-sm font-medium">Choose your starting point</legend>
                   {([
-                    ["books", "Start with my books", "Classify money, record bills and expenses, and review reports. No invoice required."],
-                    ["collect", "Collect a payment", "Connect a wallet, add a customer and create your first payment request."],
-                    ["connect", "Connect my store or checkout", "Your store, checkout or backend sends Setra each order. Payments are matched and booked without you creating invoices."]
+                    ["books", "Set up my books", "Start with the ledger, bills, expenses and reports. Add payment collection when you need it."],
+                    ["collect", "Collect my first payment", "Connect a wallet, add a customer and create a hosted payment request."],
+                    ["connect", "Connect a store or checkout", "Send orders from your existing system so Setra can match and account for their payments."]
                   ] as const).map(([value, title, description]) => (
                     <label key={value} className={cn("flex cursor-pointer items-start gap-3 rounded-xl border p-4", setup === value && "border-primary bg-primary/5")}>
                       <input type="radio" name="setup" value={value} checked={setup === value} onChange={() => setSetup(value)} className="mt-1 accent-[var(--primary)]" />
@@ -168,13 +169,19 @@ function Onboarding() {
                     </label>
                   ))}
                 </fieldset>
-                <p className="text-sm text-muted-foreground">Setra monitors public addresses on Monad. Your funds never pass through Setra.</p>
+                <p className="text-sm text-muted-foreground">Setra reads public activity on Monad. Funds and signing authority stay in your wallet.</p>
                 <div className="flex flex-wrap items-center gap-2.5">
                   <Badge tone="info">Test mode</Badge>
                   <Chain network="monad" name="Monad Testnet" />
                   <span className="text-muted-foreground text-sm">· USDC</span>
                 </div>
-                <Field label="Public wallet address" htmlFor="ob-address" error={errs.address} hint="Paste the address only. Setra never asks for a private key or seed phrase.">
+                <Field
+                  label="Public wallet address"
+                  htmlFor="ob-address"
+                  error={errs.address}
+                  optional={setup !== "collect"}
+                  hint={setup === "collect" ? "The wallet your customers pay. Paste the address only. Setra never asks for a private key or seed phrase." : "You can add it later. Setra only sees payments to wallets you've added. Paste the address only, never a private key or seed phrase."}
+                >
                   <Input
                     id="ob-address"
                     className="h-11 rounded-xl font-mono"
@@ -182,21 +189,16 @@ function Onboarding() {
                     onChange={(e) => setWallet((w) => ({ ...w, address: e.target.value }))}
                     placeholder="0x…"
                     spellCheck={false}
-                    required
+                    required={setup === "collect"}
                   />
                 </Field>
                 <Field label="Name" htmlFor="ob-wname">
                   <Input id="ob-wname" value={wallet.name} onChange={(e) => setWallet((w) => ({ ...w, name: e.target.value }))} />
                 </Field>
                 <Alert tone="neutral">You start in test mode on Monad testnet. Switch to live mode (Monad mainnet) any time from the console.</Alert>
-                <Button type="submit" variant="primary" size="lg" loading={busy} disabled={!/^0x[0-9a-fA-F]{40}$/.test(wallet.address.trim())}>
-                  Start monitoring
+                <Button type="submit" variant="primary" size="lg" loading={busy} disabled={wallet.address.trim() ? !ADDRESS.test(wallet.address.trim()) : setup === "collect"}>
+                  {setup === "books" ? "Open my books" : setup === "connect" ? "Connect my store" : "Continue"}
                 </Button>
-                {setup === "books" && (
-                  <Button type="button" size="lg" disabled={busy} onClick={() => run(finishBooks)}>
-                    Set up wallet later
-                  </Button>
-                )}
               </form>
             )}
 
@@ -216,9 +218,9 @@ function Onboarding() {
                 }}
               >
                 <div>
-                  <h1>Who&rsquo;s paying you?</h1>
+                  <h1>Add the customer you want to bill</h1>
                   <p className="mt-2 text-[1.0625rem] tracking-[-0.012em] text-muted-foreground">
-                    Add your first customer. A known wallet helps Setra match payments; ambiguous activity still goes to review.
+                    A known sender address strengthens the match. Leave it blank if you do not have one; uncertain payments will wait for review.
                   </p>
                 </div>
                 <Field label="Customer name" htmlFor="ob-cname" error={errs.name}>
@@ -255,8 +257,8 @@ function Onboarding() {
                 }}
               >
                 <div>
-                  <h1>Request your first payment</h1>
-                  <p className="mt-2 text-[1.0625rem] tracking-[-0.012em] text-muted-foreground">Monad and USDC are already selected. You can change them later.</p>
+                  <h1>Create your first payment request</h1>
+                  <p className="mt-2 text-[1.0625rem] tracking-[-0.012em] text-muted-foreground">This request will collect USDC on Monad into the wallet you just connected.</p>
                 </div>
                 <Field label="Amount" htmlFor="ob-amount" error={errs.amount}>
                   <MoneyInput id="ob-amount" large suffix="USDC" value={invoice.amount} onChange={(amount) => setInvoice((i) => ({ ...i, amount }))} placeholder="2,000.00" autoFocus required />
@@ -276,9 +278,9 @@ function Onboarding() {
                   <div className="mb-3 grid size-12 place-items-center rounded-full bg-success/12 text-success">
                     <Check className="size-[22px]" />
                   </div>
-                  <h1>{created.number} is ready to pay</h1>
+                  <h1>{created.number} is ready to send</h1>
                   <p className="mt-2 text-[1.0625rem] tracking-[-0.012em] text-muted-foreground">
-                    Send this link to your customer. When they pay, Setra detects the payment on Monad, verifies it, matches it to {created.number} and marks it paid.
+                    Share this link with your customer. Setra will follow the payment from Monad finality through the match, invoice balance and journal entry.
                   </p>
                 </div>
                 <div className="flex min-w-0 items-center gap-1.5 rounded-xl bg-muted px-3.5 py-3">
@@ -297,14 +299,13 @@ function Onboarding() {
                       router.push(`/app/invoices/${created.id}`);
                     }}
                   >
-                    Watch for the payment
+                    Open invoice
                   </Button>
                 </div>
-                <p className="text-sm text-muted-foreground">No testnet USDC handy? You can simulate the payment from the invoice page. It goes through the same pipeline.</p>
+                <p className="text-sm text-muted-foreground">You can pay with testnet USDC or run a simulation from the invoice page. Simulations use the same matching, event and accounting services without moving funds.</p>
               </div>
             )}
-          </motion.div>
-        </AnimatePresence>
+          </div>
       </Card>
     </div>
   );

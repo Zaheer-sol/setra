@@ -22,16 +22,19 @@ no real money moves.
 
 ## Message you can send
 
-> Hi {name}, I'm building Setra for the Monad Metropolis hackathon: you get paid in stablecoins, and
-> your books are done automatically the moment the payment is final (every number traces back to the
-> transaction, and you can export to QuickBooks or Xero). Would you try it for 15 minutes? It runs on
-> Monad testnet, so no real money is involved: you'd send yourself (or a friendly client) an invoice,
-> pay it with free testnet USDC, and tell me honestly whether it would save you time on your real
-> invoices. It's non-custodial: Setra never touches your funds.
+> Hi {name}, when a client pays you in USDC, how do you work out which invoice it was for and get it
+> into your books?
+>
+> I'm building Setra for the Monad Metropolis hackathon. About two seconds after a payment lands, it
+> matches the payment to its invoice and records it in your books, with exports to QuickBooks or Xero.
+>
+> Would you try it for 15 minutes and tell me honestly if it would save you time? It runs on Monad
+> testnet, so you'd pay a test invoice with free testnet USDC. No real money is involved, and Setra
+> never touches your funds.
 
 ## The 15-minute session
 
-1. They sign up ("Start your workspace"), choose **Collect a payment**, and paste their public wallet address.
+1. They sign up ("Create your workspace"), choose **Collect my first payment**, and paste their public wallet address.
 2. Stay in **test mode** (Monad testnet). Create a payment request with Seti or **New invoice**, using
    the kind of amount and description they'd put on a real invoice.
 3. The client (or they, from a second wallet funded with testnet USDC and a little testnet MON from a

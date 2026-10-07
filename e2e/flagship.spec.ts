@@ -10,33 +10,36 @@ async function signup(page: Page) {
   await page.getByLabel("Work email").fill(email);
   await page.getByLabel("Password").fill("correct horse battery");
   await page.getByRole("button", { name: "Create account" }).click();
-  await expect(page).toHaveURL(/\/onboarding/);
+  await expect(page).toHaveURL(/\/onboarding/, { timeout: 30_000 });
   return email;
 }
 
-test("signup → workspace → wallet → customer → invoice → Monad payment → matched → paid → evidence → reconciliation → export", async ({ page, context }) => {
+test("signup → workspace → wallet → customer → invoice → Monad payment → matched → paid → evidence → reconciliation → export", async ({ page }) => {
   await signup(page);
 
   // Onboarding: business, wallet, customer, invoice, share.
   await page.getByLabel("Business name").fill("Acme Infrastructure");
   await page.getByRole("button", { name: "Continue" }).click();
   await expect(page.getByRole("heading", { name: "How would you like to start?" })).toBeVisible();
-  await page.getByRole("radio", { name: /Collect a payment/ }).check();
+  await page.getByRole("radio", { name: /Collect my first payment/ }).check();
   await page.getByLabel("Public wallet address").fill(address());
-  await page.getByRole("button", { name: "Start monitoring" }).click();
-  await expect(page.getByRole("heading", { name: "Who’s paying you?" })).toBeVisible();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByRole("heading", { name: "Add the customer you want to bill" })).toBeVisible();
   await page.getByLabel("Customer name").fill("Acme Ltd");
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByLabel("Amount").fill("2000.00");
   await page.getByLabel("What is this payment for?").fill("September Infrastructure Services");
   await page.getByRole("button", { name: "Create payment request" }).click();
-  await expect(page.getByRole("heading", { name: /is ready to pay/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /is ready to send/ })).toBeVisible();
   const paymentUrl = (await page.locator(".onboarding-card .font-mono").first().textContent())!.trim();
   expect(paymentUrl).toMatch(/\/pay\/[A-Za-z0-9_-]+$/);
 
   // The customer opens the hosted page and pays (test mode: simulated through the real pipeline).
-  const customer = await context.newPage();
-  await customer.goto(new URL(paymentUrl).pathname);
+  const [customer] = await Promise.all([
+    page.waitForEvent("popup"),
+    page.getByRole("link", { name: "Open payment page" }).click()
+  ]);
+  await customer.waitForLoadState("domcontentloaded");
   await expect(customer.getByRole("heading", { name: "September Infrastructure Services" })).toBeVisible(); // purpose before paying
   await expect(customer.getByText("$2,000")).toBeVisible();
   await expect(customer.getByText("Monad Testnet").first()).toBeVisible();
@@ -44,7 +47,8 @@ test("signup → workspace → wallet → customer → invoice → Monad payment
   await expect(customer.getByRole("heading", { name: "Payment received" })).toBeVisible();
 
   // The merchant sees the invoice paid.
-  await page.getByRole("button", { name: "Watch for the payment" }).click();
+  await page.getByRole("button", { name: "Open invoice" }).click();
+  await expect(page).toHaveURL(/\/app\/invoices\//);
   await expect(page.locator(".status-line").getByText("Paid")).toBeVisible();
   await expect(page.getByRole("main")).toHaveCount(1); // one main landmark in the console shell
 
@@ -77,9 +81,9 @@ test("partial payment → exception → resolve → history preserved", async ({
   await signup(page);
   await page.getByLabel("Business name").fill("Nova Traders");
   await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("radio", { name: /Collect a payment/ }).check();
+  await page.getByRole("radio", { name: /Collect my first payment/ }).check();
   await page.getByLabel("Public wallet address").fill(address());
-  await page.getByRole("button", { name: "Start monitoring" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
   // Customer with a known wallet, so a partial payment can be attributed.
   await page.getByLabel("Customer name").fill("Nova Systems");
   await page.getByLabel("Their wallet address").fill(address());
@@ -87,7 +91,8 @@ test("partial payment → exception → resolve → history preserved", async ({
   await page.getByLabel("Amount").fill("2000.00");
   await page.getByLabel("What is this payment for?").fill("Managed cloud platform");
   await page.getByRole("button", { name: "Create payment request" }).click();
-  await page.getByRole("button", { name: "Watch for the payment" }).click();
+  await page.getByRole("button", { name: "Open invoice" }).click();
+  await expect(page).toHaveURL(/\/app\/invoices\//);
 
   await page.getByRole("button", { name: "Partial" }).click();
   await expect(page.locator(".status-line").getByText("Partially paid")).toBeVisible();
@@ -110,15 +115,16 @@ test("unknown payment → assign with reason → invoice paid", async ({ page })
   await signup(page);
   await page.getByLabel("Business name").fill("Studio Works");
   await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("radio", { name: /Collect a payment/ }).check();
+  await page.getByRole("radio", { name: /Collect my first payment/ }).check();
   await page.getByLabel("Public wallet address").fill(address());
-  await page.getByRole("button", { name: "Start monitoring" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page.getByLabel("Customer name").fill("Studio Ten");
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByLabel("Amount").fill("740.00");
   await page.getByLabel("What is this payment for?").fill("Design review retainer");
   await page.getByRole("button", { name: "Create payment request" }).click();
-  await page.getByRole("button", { name: "Watch for the payment" }).click();
+  await page.getByRole("button", { name: "Open invoice" }).click();
+  await expect(page).toHaveURL(/\/app\/invoices\//);
 
   // An unknown $300 arrives from a stranger.
   await page.goto("/app/developers/test-mode");
@@ -140,19 +146,19 @@ test("setup picks up after a reload with the wallet already added", async ({ pag
   await signup(page);
   await page.getByLabel("Business name").fill("Reload Ltd");
   await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("radio", { name: /Collect a payment/ }).check();
+  await page.getByRole("radio", { name: /Collect my first payment/ }).check();
   const wallet = address();
   await page.getByLabel("Public wallet address").fill(wallet);
-  await page.getByRole("button", { name: "Start monitoring" }).click();
-  await expect(page.getByRole("heading", { name: "Who’s paying you?" })).toBeVisible();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByRole("heading", { name: "Add the customer you want to bill" })).toBeVisible();
 
   // Reloading goes back to the wallet step; entering the same wallet continues instead of failing.
   await page.reload();
   await expect(page.getByRole("heading", { name: "How would you like to start?" })).toBeVisible();
-  await page.getByRole("radio", { name: /Collect a payment/ }).check();
+  await page.getByRole("radio", { name: /Collect my first payment/ }).check();
   await page.getByLabel("Public wallet address").fill(wallet);
-  await page.getByRole("button", { name: "Start monitoring" }).click();
-  await expect(page.getByRole("heading", { name: "Who’s paying you?" })).toBeVisible();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(page.getByRole("heading", { name: "Add the customer you want to bill" })).toBeVisible();
   const wallets = await (await page.request.get("/api/v1/wallets")).json();
   expect(wallets.data).toHaveLength(1);
 });
@@ -168,27 +174,31 @@ test("payment links and one-time secrets fit a phone screen", async ({ page }) =
   await signup(page);
   await page.getByLabel("Business name").fill("Small Screen Co");
   await page.getByRole("button", { name: "Continue" }).click();
-  await page.getByRole("radio", { name: /Collect a payment/ }).check();
+  await page.getByRole("radio", { name: /Collect my first payment/ }).check();
   await page.getByLabel("Public wallet address").fill(address());
-  await page.getByRole("button", { name: "Start monitoring" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page.getByLabel("Customer name").fill("Nova Systems");
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByLabel("Amount").fill("250.00");
   await page.getByLabel("What is this payment for?").fill("Website development");
   await page.getByRole("button", { name: "Create payment request" }).click();
-  await expect(page.getByRole("heading", { name: /is ready to pay/ })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /is ready to send/ })).toBeVisible();
   await fits("Copy payment link");
 
   // The payer's manual-send details on a phone.
-  const payer = await page.context().newPage();
+  const [payer] = await Promise.all([
+    page.waitForEvent("popup"),
+    page.getByRole("link", { name: "Open payment page" }).click()
+  ]);
   await payer.setViewportSize({ width: 375, height: 812 });
-  await payer.goto(new URL(await page.getByText(/\/pay\//).first().innerText()).pathname);
+  await payer.waitForLoadState("domcontentloaded");
   await payer.getByRole("tab", { name: /Send manually/ }).click();
   await expect(payer.getByRole("button", { name: "Copy 2. to this address" })).toBeVisible();
   expect(await payer.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
   await payer.close();
 
-  await page.getByRole("button", { name: "Watch for the payment" }).click();
+  await page.getByRole("button", { name: "Open invoice" }).click();
+  await expect(page).toHaveURL(/\/app\/invoices\//);
   await expect(page.getByRole("heading", { name: "Payment link" })).toBeVisible();
   await fits("Copy payment link");
 

@@ -23,6 +23,7 @@ const OUTCOME: Record<string, { label: string; tone: "success" | "info" | "neutr
 export default function OrderSourcesPage() {
   const { can, isTest } = useSession();
   const { data, error, mutate } = useApi<{ data: Source[] }>("/v1/order-sources");
+  const { data: wallets } = useApi<{ data: unknown[] }>("/v1/wallets");
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<Created | null>(null);
   const write = can("webhooks:write");
@@ -32,9 +33,14 @@ export default function OrderSourcesPage() {
     <div className="grid gap-6 [&>*]:min-w-0">
       <PageHeader
         title="Orders from your systems"
-        description="Connect your store, checkout or backend once. It tells Setra about each order, Setra matches the payment when it reaches your wallet and books it, and you only step in when something doesn't add up. No invoices to create by hand."
+        description="Send each order from your store, checkout or backend. Setra matches the payment when it reaches your wallet, posts it to the books and asks you only when something doesn't add up."
         actions={write && <Button variant="primary" icon={<Plus />} onClick={() => setCreating(true)}>Connect a source</Button>}
       />
+      {wallets && wallets.data.length === 0 && (
+        <Alert tone="warning" title="Add the wallet your customers pay">
+          Orders can come in now, but Setra can only match a payment once it knows which wallet receives it. <Link href="/app/wallets" className="font-medium text-primary hover:underline">Add a wallet</Link>
+        </Alert>
+      )}
       {created && <ConnectedNotice source={created} onDone={() => setCreated(null)} />}
 
       <Card title="Connected sources" description="Each one has its own address. Every order it sends is checked against its secret and recorded once, even if it's sent again.">

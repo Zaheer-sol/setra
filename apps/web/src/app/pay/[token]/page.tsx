@@ -12,7 +12,7 @@ import { useInjectedWallets, type InjectedWallet } from "@/lib/browser-wallets";
 import { dateShort, money, moneyParts, shortAddress } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ChainMark, LineItems, Segmented, Spinner } from "@/components/app-ui";
-import { AnimatePresence, CountUp, EASE, motion } from "@/components/motion";
+import { CountUp, EASE, motion } from "@/components/motion";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -38,8 +38,13 @@ interface PublicView {
   payments: Array<{ amount: string; status: string; transaction_hash: string | null; explorer_url: string | null; simulated: boolean; paid_at: string }>;
 }
 
-async function publicCall<T>(path: string, method = "GET"): Promise<T> {
-  const res = await fetch(`/api${path}`, { method, headers: { accept: "application/json" }, cache: "no-store" });
+async function publicCall<T>(path: string, method = "GET", body?: unknown): Promise<T> {
+  const res = await fetch(`/api${path}`, {
+    method,
+    headers: { accept: "application/json", ...(body === undefined ? {} : { "content-type": "application/json" }) },
+    body: body === undefined ? undefined : JSON.stringify(body),
+    cache: "no-store"
+  });
   const data = await res.json().catch(() => null);
   if (!res.ok) throw new Error(data?.error?.message ?? "Something went wrong. Please try again.");
   return data as T;
@@ -110,7 +115,7 @@ function PayCard({ view, token, refresh }: { view: PublicView; token: string; re
 
   return (
     <div className="[perspective:1400px]">
-    <motion.div className={cardCls} initial={{ opacity: 0, y: 28, rotateX: 10, scale: 0.97 }} animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }} transition={{ duration: 0.9, ease: EASE }} style={{ transformOrigin: "50% 0%" }}>
+    <div className={cn(cardCls, "animate-in slide-in-from-bottom-4 duration-500 motion-reduce:animate-none")}>
       <div className="flex items-center gap-3 border-b pb-5">
         <span className="grid size-10 place-items-center rounded-[11px] bg-gradient-to-b from-[#2997ff] to-[#0071e3] text-[17px] font-bold text-white" aria-hidden="true">
           {view.merchant.name.slice(0, 1)}
@@ -194,7 +199,7 @@ function PayCard({ view, token, refresh }: { view: PublicView; token: string; re
           )}
         </>
       )}
-    </motion.div>
+    </div>
     </div>
   );
 }
@@ -290,11 +295,10 @@ function PaymentMethods({ view, token, refresh }: { view: PublicView; token: str
           { value: "manual", label: <><QrCode className="size-3.5" aria-hidden="true" /> Send manually</> }
         ]}
       />
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.div key={method} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }} transition={{ duration: 0.25, ease: EASE }}>
-          {method === "wallet" ? <WalletCheckout view={view} token={token} onSubmitted={refresh} /> : <ManualInstructions view={view} />}
-        </motion.div>
-      </AnimatePresence>
+      {/* Rendered at once with a CSS slide and no fade: wallet browsers and battery saver throttle animations, which left the card blank. */}
+      <div key={method} className="animate-in slide-in-from-bottom-1 duration-200 motion-reduce:animate-none">
+        {method === "wallet" ? <WalletCheckout view={view} token={token} onSubmitted={refresh} /> : <ManualInstructions view={view} />}
+      </div>
       {view.test_mode && <SimulateButton token={token} onDone={refresh} />}
     </div>
   );

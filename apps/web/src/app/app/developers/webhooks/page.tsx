@@ -41,7 +41,7 @@ export default function WebhooksPage() {
       <PageHeader
         breadcrumbs={[{ label: "Developers", href: "/app/developers" }, { label: "Webhooks" }]}
         title="Webhooks"
-        description="Setra POSTs signed financial events to your endpoints, retries with backoff, and keeps every attempt. A delivery is marked delivered only after your server returns 2xx."
+        description="Optional, for businesses with their own software. Setra tells your system the moment a payment lands, so it can mark the order paid or start fulfilment. You don't need this to get paid or keep your books, and you never need to run a node or set up an RPC."
         actions={can("webhooks:write") && <Button variant="primary" icon={<Plus />} onClick={() => setCreating(true)}>Add endpoint</Button>}
       />
       {secret && (
@@ -59,7 +59,7 @@ export default function WebhooksPage() {
           <SkeletonRows rows={2} cols={4} />
         ) : endpoints.data.length === 0 ? (
           <EmptyState icon={<Webhook />} title="No endpoints yet" mascot="curious" actions={can("webhooks:write") && <Button size="sm" variant="primary" icon={<Plus />} onClick={() => setCreating(true)}>Add endpoint</Button>}>
-            Add an HTTPS endpoint to receive payment.matched, payment.unknown and other events as they happen.
+            Paste the web address your developer gives you, for example your shop's order system. Setra sends it a signed message each time a payment is matched, needs review or is reversed.
           </EmptyState>
         ) : (
           <ul>
@@ -226,7 +226,7 @@ function CreateEndpointModal({ open, onClose, onCreated }: { open: boolean; onCl
     >
       <div className="grid gap-4">
         {error && <Alert tone="danger">{error.message}</Alert>}
-        <Field label="Endpoint URL" htmlFor="we-url" hint="HTTPS in production. Private and local addresses are refused outside development.">
+        <Field label="Your system's web address" htmlFor="we-url" hint="Provided by your developer or software. It must start with https://. You don't need an RPC or a node: Setra watches Monad for you.">
           <Input id="we-url" type="url" className="font-mono text-[0.92em]" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://api.example.com/setra/webhooks" autoFocus />
         </Field>
         <Field label="Description" htmlFor="we-desc" optional>
