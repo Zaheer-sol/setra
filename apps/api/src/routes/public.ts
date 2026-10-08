@@ -95,6 +95,7 @@ async function publicView(c: Client, invoiceId: string) {
       customer_name: inv.customer_name,
       currency: inv.currency,
       amount_due: amount(inv.amount_due, d),
+      tax_amount: amount(inv.tax_amount ?? 0, d),
       amount_paid: amount(inv.amount_paid, d),
       amount_remaining: amount(remaining > 0n ? remaining : 0n, d),
       amount_confirming: amount(confirming, d),

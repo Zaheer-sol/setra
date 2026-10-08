@@ -5,14 +5,16 @@ import { verifySignature } from "@setra/events";
 import { newId, orderInput, type Environment, type OrderInput } from "@setra/schemas";
 import { decryptSecret, encryptSecret, randomToken } from "@setra/security";
 import { audit, EngineError, log, type Actor } from "./context";
-import { upsertOrder, type OrderOutcome } from "./orders";
+import { cancelInvoice } from "./invoices";
+import { findOrder, upsertOrder, type OrderOutcome } from "./orders";
 
 /**
  * Order sources: a store, checkout, payment processor or backend connected once, which then posts its
  * orders to Setra by itself. Two formats:
  *
- *   generic  Setra's order JSON, signed like Setra's own webhooks (X-Setra-Timestamp, X-Setra-Signature).
- *   shopify  Shopify's order webhooks as they are, signed by Shopify (X-Shopify-Hmac-Sha256).
+ *   generic      Setra's order JSON, signed like Setra's own webhooks (X-Setra-Timestamp, X-Setra-Signature).
+ *   shopify      Shopify's order webhooks as they are, signed by Shopify (X-Shopify-Hmac-Sha256).
+ *   woocommerce  WooCommerce's order webhooks as they are, signed with a Setra secret (X-WC-Webhook-Signature).
  *
  * Every delivery is recorded once by the sender's delivery ID, so retries never create a second order,
  * and each one says what Setra did with it.
@@ -26,11 +28,12 @@ export async function createOrderSource(
   client: Client,
   organizationId: string,
   environment: Environment,
-  input: { kind: "generic"; name: string } | { kind: "shopify"; name: string; secret: string },
+  input: { kind: "generic" | "woocommerce"; name: string } | { kind: "shopify"; name: string; secret: string },
   actor: Actor
 ): Promise<{ source: Row; secret: string | null }> {
-  // A generic source gets a secret from Setra, shown once. Shopify signs with the store's own secret.
-  const secret = input.kind === "generic" ? `osec_${randomToken(24)}` : input.secret;
+  // Generic and WooCommerce sources get a secret from Setra, shown once (WooCommerce takes it in its
+  // webhook settings). Shopify signs with the store's own secret.
+  const secret = input.kind === "shopify" ? input.secret : `osec_${randomToken(24)}`;
   const id = newId("orderSource");
   await client.query(
     "INSERT INTO order_sources (id, organization_id, environment, kind, name, secret_ciphertext, secret_hint, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)",
@@ -38,7 +41,7 @@ export async function createOrderSource(
   );
   await audit(client, actor, { organizationId, environment, action: "order_source_created", objectType: "order_source", objectId: id, next: { kind: input.kind, name: input.name } });
   const source = (await client.query("SELECT * FROM order_sources WHERE id = $1", [id])).rows[0] as Row;
-  return { source, secret: input.kind === "generic" ? secret : null };
+  return { source, secret: input.kind === "shopify" ? null : secret };
 }
 
 export async function setOrderSourceStatus(client: Client, organizationId: string, sourceId: string, status: "active" | "disabled", actor: Actor): Promise<Row> {
@@ -67,12 +70,15 @@ export function verifyShopifySignature(secret: string, rawBody: string, header: 
 /** Statuses meaning the order was paid (or settled) through Shopify itself, not in stablecoins. */
 const SETTLED_ELSEWHERE = new Set(["paid", "partially_refunded", "refunded", "voided", "partially_paid", "authorized"]);
 
+/** What a store webhook means for Setra: an order to expect payment for, one to close, or nothing. */
+type StoreEvent = { order: OrderInput } | { close: string; reason: string } | { ignore: string };
+
 /**
  * A Shopify order as a Setra order, or the reason to leave it alone. Only orders still waiting for
  * payment in US dollars become expected stablecoin payments; card orders Shopify already collected are
  * not Setra's to reconcile.
  */
-export function shopifyOrder(topic: string, body: Row): { order: OrderInput } | { ignore: string } {
+export function shopifyOrder(topic: string, body: Row): StoreEvent {
   const id = body?.id;
   if (id === undefined || id === null) return { ignore: "This isn't a Shopify order." };
   const externalId = `shopify:${id}`;
@@ -82,7 +88,8 @@ export function shopifyOrder(topic: string, body: Row): { order: OrderInput } | 
   const currency = String(body.currency ?? body.presentment_currency ?? "").toUpperCase();
   if (currency !== "USD") return { ignore: `The order is in ${currency || "an unknown currency"}. Setra reconciles USD stablecoin payments.` };
   const financial = String(body.financial_status ?? "pending");
-  if (SETTLED_ELSEWHERE.has(financial)) return { ignore: `Shopify reports this order as ${financial.replace(/_/g, " ")}, so it wasn't paid in stablecoins.` };
+  // Paid by card or otherwise through Shopify: an order Setra is still waiting on can be closed.
+  if (SETTLED_ELSEWHERE.has(financial)) return { close: externalId, reason: `Shopify reports this order as ${financial.replace(/_/g, " ")}, so it was settled outside Setra.` };
   const c = body.customer ?? {};
   const name = [c.first_name, c.last_name].filter(Boolean).join(" ").trim() || undefined;
   const email = (c.email ?? body.email ?? body.contact_email) || undefined;
@@ -98,12 +105,77 @@ export function shopifyOrder(topic: string, body: Row): { order: OrderInput } | 
     purpose: summary ? summary.slice(0, 500) : undefined,
     // Shopify's total already includes tax, shipping and discounts, so it is the amount to collect.
     amount: String(body.current_total_price ?? body.total_price ?? ""),
+    tax: positiveMoney(body.current_total_tax ?? body.total_tax),
     currency: "USD",
     customer: { external_ref: c.id ? `shopify:${c.id}` : undefined, name, email: email ? String(email).toLowerCase() : undefined },
     metadata: { shopify_order_id: String(id), ...(body.name ? { shopify_order_name: String(body.name).slice(0, 60) } : {}) }
   });
   if (!parsed.success) return { ignore: `Shopify sent an order Setra can't use: ${parsed.error.issues[0]?.message ?? "invalid order"}.` };
   return { order: parsed.data };
+}
+
+/** A store's money string as Setra's decimal, or nothing when it's zero or missing. */
+function positiveMoney(v: unknown): string | undefined {
+  const text = typeof v === "number" ? v.toFixed(2) : typeof v === "string" ? v.trim() : "";
+  return /^\d+(\.\d{1,6})?$/.test(text) && Number(text) > 0 ? text : undefined;
+}
+
+// ── WooCommerce ──────────────────────────────────────────────────────────────────────────────────
+
+/** WooCommerce's signature: base64 HMAC-SHA256 of the raw body, same scheme as Shopify's. */
+export const verifyWooSignature = verifyShopifySignature;
+
+/**
+ * A WooCommerce order as a Setra order. "pending" and "on-hold" are waiting for payment; "processing"
+ * and "completed" were paid some other way; cancelled, failed, refunded and deleted orders close.
+ */
+export function wooOrder(topic: string, body: Row): StoreEvent {
+  const id = body?.id;
+  if (id === undefined || id === null) return { ignore: "This isn't a WooCommerce order." };
+  const externalId = `woo:${id}`;
+  const status = String(body.status ?? "pending");
+  if (topic === "order.deleted" || ["cancelled", "failed", "trash"].includes(status)) return { order: orderInput.parse({ external_id: externalId, status: "cancelled" }) };
+  if (status === "refunded") return { close: externalId, reason: "WooCommerce reports this order as refunded." };
+  if (status === "processing" || status === "completed") return { close: externalId, reason: `WooCommerce reports this order as ${status}, so it was paid outside Setra.` };
+  if (status === "checkout-draft" || status === "draft") return { ignore: "The customer hasn't finished checking out yet." };
+  const currency = String(body.currency ?? "").toUpperCase();
+  if (currency !== "USD") return { ignore: `The order is in ${currency || "an unknown currency"}. Setra reconciles USD stablecoin payments.` };
+  const billing = body.billing ?? {};
+  const name = [billing.first_name, billing.last_name].filter(Boolean).join(" ").trim() || billing.company || undefined;
+  const email = billing.email || undefined;
+  const items: Array<{ name?: string; quantity?: number }> = Array.isArray(body.line_items) ? body.line_items : [];
+  const summary = items
+    .slice(0, 8)
+    .map((li) => `${li.quantity ?? 1} × ${String(li.name ?? "item").slice(0, 60)}`)
+    .join(", ");
+  const number = String(body.number ?? id).replace(/[^A-Za-z0-9._/-]/g, "").slice(0, 32);
+  const customerId = Number(body.customer_id) > 0 ? `woo:${body.customer_id}` : undefined;
+  const parsed = orderInput.safeParse({
+    external_id: externalId,
+    number: number ? `WC-${number}` : undefined,
+    title: `WooCommerce order #${body.number ?? id}`.slice(0, 140),
+    purpose: summary ? summary.slice(0, 500) : undefined,
+    amount: String(body.total ?? ""),
+    tax: positiveMoney(body.total_tax),
+    currency: "USD",
+    customer: { external_ref: customerId, name, email: email ? String(email).toLowerCase() : undefined },
+    metadata: { woocommerce_order_id: String(id), ...(body.number ? { woocommerce_order_number: String(body.number).slice(0, 60) } : {}) }
+  });
+  if (!parsed.success) return { ignore: `WooCommerce sent an order Setra can't use: ${parsed.error.issues[0]?.message ?? "invalid order"}.` };
+  return { order: parsed.data };
+}
+
+/**
+ * The store settled an order some other way (card, refund). Close the Setra order if nothing has been
+ * paid or is confirming against it; if a stablecoin payment is already there, leave it alone.
+ */
+async function closeSettledOrder(c: Client, source: Row, externalId: string, reason: string, actor: Actor): Promise<{ outcome: SourceOutcome; detail: string; invoiceId: string | null }> {
+  const existing = await findOrder(c, source.organization_id, source.environment, externalId, true);
+  if (!existing) return { outcome: "ignored", detail: `${reason} Setra had no open order for it.`, invoiceId: null };
+  const touched = BigInt(existing.amount_paid) > 0n || (await c.query("SELECT 1 FROM payments WHERE invoice_id = $1 OR provisional_invoice_id = $1 LIMIT 1", [existing.id])).rows[0];
+  if (touched || !["open", "expired"].includes(existing.status)) return { outcome: "unchanged", detail: `${reason} Setra already has a stablecoin payment on it, so it stays as it is.`, invoiceId: existing.id };
+  const closed = await cancelInvoice(c, source.organization_id, existing.id, reason, actor);
+  return { outcome: "cancelled", detail: reason, invoiceId: closed.id };
 }
 
 // ── receiving ────────────────────────────────────────────────────────────────────────────────────
@@ -138,6 +210,13 @@ export async function receiveOrderEvent(sourceId: string, headers: Record<string
     if (!verifyShopifySignature(secret, rawBody, header(headers, "x-shopify-hmac-sha256"))) return { status: 401, outcome: "rejected", detail: "The Shopify signature doesn't match this source's secret." };
     topic = header(headers, "x-shopify-topic") ?? "orders/updated";
     deliveryId = header(headers, "x-shopify-webhook-id") ?? createHash("sha256").update(rawBody).digest("hex");
+  } else if (source.kind === "woocommerce") {
+    // WooCommerce checks a new webhook with an unsigned form post ("webhook_id=12") and disables it
+    // unless it gets a 2xx. It carries no order, so acknowledge it and do nothing.
+    if (/^webhook_id=\d+$/.test(rawBody.trim())) return { status: 200, outcome: "ignored", detail: "WooCommerce connection check received." };
+    if (!verifyWooSignature(secret, rawBody, header(headers, "x-wc-webhook-signature"))) return { status: 401, outcome: "rejected", detail: "The WooCommerce signature doesn't match this source's secret." };
+    topic = header(headers, "x-wc-webhook-topic") ?? "order.updated";
+    deliveryId = header(headers, "x-wc-webhook-delivery-id") ?? createHash("sha256").update(rawBody).digest("hex");
   } else {
     if (!verifySignature(secret, rawBody, header(headers, "x-setra-timestamp"), header(headers, "x-setra-signature"))) {
       return { status: 401, outcome: "rejected", detail: "The signature or timestamp doesn't match this source's secret." };
@@ -158,9 +237,15 @@ export async function receiveOrderEvent(sourceId: string, headers: Record<string
       return record(c, source, deliveryId, topic, null, "failed", "The body isn't valid JSON.", null);
     }
     let order: OrderInput;
-    if (source.kind === "shopify") {
-      const mapped = shopifyOrder(topic, body as Row);
-      if ("ignore" in mapped) return record(c, source, deliveryId, topic, `shopify:${(body as Row)?.id ?? "?"}`, "ignored", mapped.ignore, null);
+    const actor: Actor = { type: "system", id: source.id, label: `Order source · ${source.name}` };
+    if (source.kind === "shopify" || source.kind === "woocommerce") {
+      const mapped = source.kind === "shopify" ? shopifyOrder(topic, body as Row) : wooOrder(topic, body as Row);
+      const ref = `${source.kind === "shopify" ? "shopify" : "woo"}:${(body as Row)?.id ?? "?"}`;
+      if ("ignore" in mapped) return record(c, source, deliveryId, topic, ref, "ignored", mapped.ignore, null);
+      if ("close" in mapped) {
+        const closed = await closeSettledOrder(c, source, mapped.close, mapped.reason, actor);
+        return record(c, source, deliveryId, topic, mapped.close, closed.outcome, closed.detail, closed.invoiceId);
+      }
       order = mapped.order;
     } else {
       const parsed = orderInput.safeParse(body);
@@ -170,7 +255,6 @@ export async function receiveOrderEvent(sourceId: string, headers: Record<string
       }
       order = parsed.data;
     }
-    const actor: Actor = { type: "system", id: source.id, label: `Order source · ${source.name}` };
     try {
       // A savepoint keeps the delivery record even when the order itself is refused.
       await c.query("SAVEPOINT order_upsert");

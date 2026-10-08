@@ -121,7 +121,8 @@ export async function upsertOrder(client: Client, organizationId: string, enviro
   const amount = expectedUnits(input, environment);
   if (existing) {
     const asset = networks().asset(existing.asset_id)?.asset;
-    const same = BigInt(existing.amount_due) === amount && asset?.symbol === input.asset;
+    const tax = input.tax !== undefined ? toBaseUnits(input.tax, asset?.decimals ?? 6) : 0n;
+    const same = BigInt(existing.amount_due) === amount && BigInt(existing.tax_amount ?? 0) === tax && asset?.symbol === input.asset;
     if (same) return { outcome: "unchanged", invoice: existing };
     const untouched = existing.status === "open" && BigInt(existing.amount_paid) === 0n && BigInt(existing.amount_written_off ?? 0) === 0n;
     const confirming = (await client.query("SELECT 1 FROM payments WHERE invoice_id = $1 OR provisional_invoice_id = $1 LIMIT 1", [existing.id])).rows[0];
@@ -142,6 +143,7 @@ export async function upsertOrder(client: Client, organizationId: string, enviro
     purpose: input.purpose,
     line_items: input.line_items,
     amount: input.amount,
+    tax: input.tax,
     currency: input.currency,
     asset: input.asset,
     network: input.network,

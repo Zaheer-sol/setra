@@ -8,7 +8,7 @@ import { useSession } from "@/components/session";
 import { api, useApi, type ApiError } from "@/lib/api";
 import { timeAgo } from "@/lib/format";
 
-type Source = { id: string; kind: "generic" | "shopify"; name: string; status: string; secret_hint: string; inbound_url: string; last_event_at: string | null; counts: Record<string, number> };
+type Source = { id: string; kind: "generic" | "shopify" | "woocommerce"; name: string; status: string; secret_hint: string; inbound_url: string; last_event_at: string | null; counts: Record<string, number> };
 type Created = Source & { secret: string | null };
 
 const OUTCOME: Record<string, { label: string; tone: "success" | "info" | "neutral" | "warning" | "danger" }> = {
@@ -98,7 +98,13 @@ function ConnectedNotice({ source, onDone }: { source: Created; onDone: () => vo
           <ol className="ml-4 list-decimal text-sm text-muted-foreground">
             <li>In Shopify, open Settings, then Notifications, then Webhooks.</li>
             <li>Create a webhook for <b>Order creation</b> in JSON, with the address above. Do the same for <b>Order update</b> and <b>Order cancellation</b>.</li>
-            <li>Orders waiting for payment in USD become expected payments in Setra. Orders Shopify already collected by card are skipped.</li>
+            <li>Orders waiting for payment in USD become expected payments in Setra. When Shopify says an order was paid by card or refunded, Setra closes it.</li>
+          </ol>
+        ) : source.kind === "woocommerce" ? (
+          <ol className="ml-4 list-decimal text-sm text-muted-foreground">
+            <li>In WordPress, open WooCommerce, then Settings, then Advanced, then Webhooks, and choose <b>Add webhook</b>.</li>
+            <li>Set the status to <b>Active</b> and the topic to <b>Order created</b>. Paste the address above as the delivery URL and the secret above as the secret. Save, then add a second webhook for <b>Order updated</b>.</li>
+            <li>Pending and on-hold orders in USD become expected payments. Orders WooCommerce marks processing, completed, refunded or cancelled are closed in Setra if no stablecoin payment arrived.</li>
           </ol>
         ) : (
           <p className="text-sm text-muted-foreground">
@@ -134,7 +140,7 @@ function SourceRow({ source: s, canWrite, onChange }: { source: Source; canWrite
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-2 font-medium">
             {s.name}
-            <Badge tone="neutral" dot={false}>{s.kind === "shopify" ? "Shopify" : "Signed JSON"}</Badge>
+            <Badge tone="neutral" dot={false}>{s.kind === "shopify" ? "Shopify" : s.kind === "woocommerce" ? "WooCommerce" : "Signed JSON"}</Badge>
             {s.status !== "active" && <Badge tone="warning">Off</Badge>}
           </p>
           <p className="text-sm text-muted-foreground">
@@ -199,7 +205,7 @@ function SourceRow({ source: s, canWrite, onChange }: { source: Source; canWrite
 }
 
 function CreateSource({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: (s: Created) => void }) {
-  const [kind, setKind] = useState<"shopify" | "generic">("shopify");
+  const [kind, setKind] = useState<"shopify" | "woocommerce" | "generic">("shopify");
   const [name, setName] = useState("");
   const [secret, setSecret] = useState("");
   const [busy, setBusy] = useState(false);
@@ -240,12 +246,13 @@ function CreateSource({ open, onClose, onCreated }: { open: boolean; onClose: ()
     >
       <div className="grid gap-4">
         {error && !error.details && <Alert tone="danger">{error.message}</Alert>}
-        <ChoiceGroup value={kind} onChange={(v) => setKind(v as "shopify" | "generic")} label="What are you connecting?">
+        <ChoiceGroup value={kind} onChange={(v) => setKind(v as "shopify" | "woocommerce" | "generic")} label="What are you connecting?">
           <ChoiceCard id="src-shopify" value="shopify" selected={kind === "shopify"} title="Shopify" description="Your store sends each order with Shopify's own webhooks." />
+          <ChoiceCard id="src-woo" value="woocommerce" selected={kind === "woocommerce"} title="WooCommerce" description="Your WordPress store sends each order with WooCommerce webhooks. Setra gives you the secret to paste in." />
           <ChoiceCard id="src-generic" value="generic" selected={kind === "generic"} title="Your checkout or backend" description="Any system that can post signed JSON, such as a custom checkout or a payment processor's webhooks forwarded from your server." />
         </ChoiceGroup>
         <Field label="Name" htmlFor="src-name" hint="So you can tell sources apart, for example “Main store”." error={errs.name}>
-          <Input id="src-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={kind === "shopify" ? "Main store" : "Checkout backend"} />
+          <Input id="src-name" value={name} onChange={(e) => setName(e.target.value)} placeholder={kind === "generic" ? "Checkout backend" : "Main store"} />
         </Field>
         {kind === "shopify" && (
           <Field label="Shopify webhook signing secret" htmlFor="src-secret" hint="In Shopify, Settings, then Notifications, then Webhooks. It's shown under the list as the secret your webhooks are signed with." error={errs.secret}>

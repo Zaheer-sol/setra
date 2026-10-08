@@ -38,6 +38,7 @@ function NewInvoiceForm() {
     title: "",
     purpose: "",
     amount: "",
+    tax: "",
     number: "",
     network: "monad",
     asset: "USDC",
@@ -109,6 +110,7 @@ function NewInvoiceForm() {
           ...(itemized
             ? { line_items: itemRows.map((r) => ({ description: r.description.trim(), quantity: Number(r.quantity), unit_amount: r.unit_amount })) }
             : { amount: form.amount }),
+          ...(form.tax.trim() ? { tax: form.tax } : {}),
           number: form.number || undefined,
           network: form.network,
           asset: form.asset,
@@ -193,6 +195,9 @@ function NewInvoiceForm() {
                 required={!itemized}
                 invalid={!!errs.amount || (!itemized && form.amount !== "" && !amountValid)}
               />
+            </Field>
+            <Field label="Tax included" htmlFor="tax" optional hint="Sales tax or VAT inside the amount. It's booked as owed to the tax office, not as revenue." error={errs.tax}>
+              <MoneyInput id="tax" suffix="USD" placeholder="0.00" value={form.tax} onChange={(v) => setForm((f) => ({ ...f, tax: v }))} invalid={!!errs.tax || (form.tax !== "" && toUnits(form.tax) === null)} />
             </Field>
             <Field label="Invoice number" htmlFor="number" optional hint="Leave blank to number automatically." error={errs.number}>
               <Input id="number" className="font-mono text-[0.92em]" value={form.number} onChange={set("number")} placeholder="INV-2052" />

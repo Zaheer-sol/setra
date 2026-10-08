@@ -125,6 +125,8 @@ export const createInvoiceInput = z
     /** Optional itemization. Items must add up to the amount; if the amount is omitted it is their total. */
     line_items: z.array(lineItemInput).min(1).max(50).optional(),
     amount: decimalAmount.optional(),
+    /** The part of the amount that is sales tax or VAT (already included, never added on top). Booked to Taxes Payable, not revenue. */
+    tax: decimalAmount.optional(),
     currency: z.literal("USD").default("USD"),
     asset: z.string().trim().toUpperCase().default("USDC"),
     network: networkFamily.default("monad"),
@@ -178,6 +180,8 @@ export const orderInput = z
     purpose: z.string().trim().min(1).max(500).optional(),
     line_items: z.array(lineItemInput).min(1).max(50).optional(),
     amount: decimalAmount.optional(),
+    /** The part of the amount that is sales tax or VAT (already included, never added on top). Booked to Taxes Payable, not revenue. */
+    tax: decimalAmount.optional(),
     currency: z.literal("USD").default("USD"),
     asset: z.string().trim().toUpperCase().default("USDC"),
     network: networkFamily.default("monad"),
@@ -196,7 +200,9 @@ export type OrderInput = z.infer<typeof orderInput>;
 export const createOrderSourceInput = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("generic"), name: z.string().trim().min(1).max(80) }),
   /** Shopify signs order webhooks with the store's own signing secret, shown under Settings → Notifications → Webhooks. */
-  z.object({ kind: z.literal("shopify"), name: z.string().trim().min(1).max(80), secret: z.string().trim().min(16).max(200) })
+  z.object({ kind: z.literal("shopify"), name: z.string().trim().min(1).max(80), secret: z.string().trim().min(16).max(200) }),
+  /** WooCommerce signs with whatever secret is pasted into its webhook settings, so Setra generates one. */
+  z.object({ kind: z.literal("woocommerce"), name: z.string().trim().min(1).max(80) })
 ]);
 
 export const cancelInvoiceInput = z.object({ reason: z.string().trim().max(500).optional() }).default({});

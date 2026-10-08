@@ -68,6 +68,8 @@ export async function createInvoice(client: Client, organizationId: string, envi
       422
     );
   }
+  const tax = input.tax !== undefined ? baseUnits(input.tax, "Tax") : 0n;
+  if (tax < 0n || tax > amountDue) throw new EngineError("invalid_tax", "Tax is part of the total, so it can't be more than the amount.", 422);
   if (input.expires_at && new Date(input.expires_at).getTime() <= Date.now()) throw new EngineError("invalid_expiry", "The expiration must be in the future.", 422);
 
   let number = input.number;
@@ -90,8 +92,8 @@ export async function createInvoice(client: Client, organizationId: string, envi
   const id = newId("invoice");
   try {
     await client.query(
-      `INSERT INTO invoices (id, organization_id, environment, customer_id, number, title, purpose, currency, asset_id, chain_id, wallet_id, amount_due, public_token, due_at, expires_at, metadata, created_by, external_id, order_source_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)`,
+      `INSERT INTO invoices (id, organization_id, environment, customer_id, number, title, purpose, currency, asset_id, chain_id, wallet_id, amount_due, public_token, due_at, expires_at, metadata, created_by, external_id, order_source_id, tax_amount)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
       [
         id,
         organizationId,
@@ -111,7 +113,8 @@ export async function createInvoice(client: Client, organizationId: string, envi
         JSON.stringify(input.metadata ?? {}),
         actor.id ?? null,
         origin.externalId ?? null,
-        origin.orderSourceId ?? null
+        origin.orderSourceId ?? null,
+        tax.toString()
       ]
     );
   } catch (error) {

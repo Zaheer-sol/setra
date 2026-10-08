@@ -119,6 +119,7 @@ export default function InvoiceDetailPage() {
           {inv.title ? `: ${inv.title}` : ""}
         </h1>
         <BigMoney value={inv.amount_due} asset={inv.asset?.symbol} />
+        {Number(inv.tax_amount) > 0 && <p className="mt-1 text-sm text-muted-foreground">Includes {money(inv.tax_amount)} tax</p>}
         <div className="mt-2.5 text-[0.9375rem] font-semibold">
           <TextLink href={`/app/customers/${inv.customer.id}`}>{inv.customer.name}</TextLink>
         </div>

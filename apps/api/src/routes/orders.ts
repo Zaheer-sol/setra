@@ -177,6 +177,8 @@ export function orderRoutes(app: FastifyInstance) {
  */
 export async function inboundOrderRoutes(app: FastifyInstance) {
   app.addContentTypeParser("application/json", { parseAs: "string", bodyLimit: 512 * 1024 }, (_request, body, done) => done(null, body));
+  // WooCommerce's connection check arrives as a form post.
+  app.addContentTypeParser("application/x-www-form-urlencoded", { parseAs: "string", bodyLimit: 4 * 1024 }, (_request, body, done) => done(null, body));
   app.post(
     "/v1/inbound/orders/:id",
     { config: { rateLimit: { max: 600, timeWindow: "1 minute" } }, schema: { tags: ["orders"], summary: "Receive an order from a connected system (signed)", hide: true } },

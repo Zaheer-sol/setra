@@ -27,7 +27,8 @@ export type SystemKey =
   | "network_fees"
   | "bad_debt"
   | "opening_balance_equity"
-  | "fx_gain_loss";
+  | "fx_gain_loss"
+  | "taxes_payable";
 
 interface Seed {
   code: string;
@@ -54,7 +55,7 @@ export const DEFAULT_CHART: Seed[] = [
   { code: "2020", name: "Customer Credits", type: "liability", subtype: "customer_credit", normal: "credit", key: "customer_credits", description: "Money customers paid beyond what they owed (overpayments), until refunded or applied." },
   { code: "2030", name: "Customer Deposits", type: "liability", subtype: "other_liability", normal: "credit", description: "Money customers paid before the work was done or an invoice existed, until it's earned or applied." },
   { code: "2050", name: "Payments to Identify", type: "liability", subtype: "suspense", normal: "credit", key: "payments_to_identify", description: "Money received that isn't tied to an invoice yet (unknown senders, duplicates, set-aside payments). Never counted as revenue." },
-  { code: "2200", name: "Taxes Payable", type: "liability", subtype: "other_liability", normal: "credit", description: "Sales tax, VAT or other taxes collected or owed and not yet paid." },
+  { code: "2200", name: "Taxes Payable", type: "liability", subtype: "other_liability", normal: "credit", key: "taxes_payable", description: "Sales tax, VAT or other taxes collected or owed and not yet paid." },
   { code: "2300", name: "Loans Payable", type: "liability", subtype: "other_liability", normal: "credit", description: "Money borrowed that has to be repaid." },
   { code: "3000", name: "Owner's Equity", type: "equity", subtype: "equity", normal: "credit", key: "owner_equity" },
   { code: "3050", name: "Opening Balance Equity", type: "equity", subtype: "equity", normal: "credit", key: "opening_balance_equity", description: "The other side of opening balances entered when you start your books. Usually moved to Owner's Equity or Retained Earnings once confirmed." },
@@ -114,9 +115,16 @@ export async function systemAccount(client: Client, organizationId: string, envi
     await seedChart(client, organizationId, environment);
     row = (await client.query("SELECT * FROM ledger_accounts WHERE organization_id = $1 AND environment = $2 AND system_key = $3", [organizationId, environment, key])).rows[0] as Row | undefined;
   }
+  // Workspaces whose chart predates an automatic account keep the standard account under its usual
+  // code; an account's role can't be changed after creation, so it's found by code instead.
+  if (!row && LEGACY_CODE[key]) {
+    row = (await client.query("SELECT * FROM ledger_accounts WHERE organization_id = $1 AND environment = $2 AND code = $3 AND system_key IS NULL AND type = $4", [organizationId, environment, LEGACY_CODE[key]!.code, LEGACY_CODE[key]!.type])).rows[0] as Row | undefined;
+  }
   if (!row) throw new EngineError("account_missing", `The ${key.replaceAll("_", " ")} account is missing.`, 500);
   return row;
 }
+
+const LEGACY_CODE: Partial<Record<SystemKey, { code: string; type: AccountType }>> = { taxes_payable: { code: "2200", type: "liability" } };
 
 /**
  * The asset account that mirrors one wallet's holding of one asset (e.g. "USDC · Main Wallet").

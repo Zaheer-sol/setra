@@ -123,6 +123,7 @@ export function serializeInvoice(row: Row, publicAppUrl: string, extra: { custom
     customer: extra.customer ? { id: extra.customer.id, name: extra.customer.name, email: extra.customer.email ?? null } : { id: row.customer_id },
     currency: row.currency,
     amount_due: amount(row.amount_due, d),
+    tax_amount: amount(row.tax_amount ?? 0, d),
     amount_paid: amount(row.amount_paid, d),
     amount_written_off: amount(row.amount_written_off ?? "0", d),
     amount_credited: amount(row.amount_credited ?? "0", d),

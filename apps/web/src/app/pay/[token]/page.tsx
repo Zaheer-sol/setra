@@ -24,7 +24,7 @@ declare global {
 
 interface PublicView {
   merchant: { name: string; support_email: string | null };
-  invoice: { number: string; title: string | null; purpose: string | null; line_items: Array<{ description: string; quantity: number; unit_amount: string; amount: string }>; customer_name: string; currency: string; amount_due: string; amount_paid: string; amount_remaining: string; amount_confirming: string; due_at: string | null; expires_at: string | null; paid_at: string | null };
+  invoice: { number: string; title: string | null; purpose: string | null; line_items: Array<{ description: string; quantity: number; unit_amount: string; amount: string }>; customer_name: string; currency: string; amount_due: string; tax_amount?: string; amount_paid: string; amount_remaining: string; amount_confirming: string; due_at: string | null; expires_at: string | null; paid_at: string | null };
   state: "awaiting_payment" | "confirming" | "partially_paid" | "paid" | "overpaid" | "expired" | "cancelled";
   test_mode: boolean;
   pay: {
@@ -164,6 +164,7 @@ function PayCard({ view, token, refresh }: { view: PublicView; token: string; re
             )}
             <div className="mt-[18px] text-sm text-muted-foreground">{state === "partially_paid" ? "Remaining balance" : "Amount due"}</div>
             <Amount whole={whole} cents={cents} />
+            {Number(invoice.tax_amount ?? 0) > 0 && <div className="mt-1 text-sm text-muted-foreground">Includes {money(invoice.tax_amount!)} tax</div>}
             <dl className="mt-4 flex flex-wrap gap-6">
               <div>
                 <dt className="text-xs text-muted-foreground">Billed to</dt>

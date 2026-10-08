@@ -276,10 +276,18 @@ async function postApplication(client: Client, s: BooksSettings, e: Row): Promis
       : inv.revenue_account_id ?? (await systemAccount(client, p.organization_id, p.environment, "sales")).id;
   const credits = excess > 0n ? (await systemAccount(client, p.organization_id, p.environment, "customer_credits")).id : null;
   const refs: Partial<LineInput> = { paymentId: p.id, invoiceId: inv.id, customerId: customer.id, financialEventId: e.id, observationId: p.observation_id, assetId: p.asset_id, rateSource: total.rateSource };
+  // Cash books recognise sales tax as it's received: each application carries its share of the
+  // invoice's tax, worked out cumulatively so partial payments add up to the exact tax.
+  const taxShare = s.method === "cash" ? taxPortion(inv, before, toReceivable) : 0n;
+  const taxValue = taxShare > 0n ? value(taxShare).amount : 0n;
   const lines: LineInput[] = [
     { ...refs, accountId: unapplied, debit: total.amount, assetAmount: allocAmount, memo: "Payment applied" },
-    { ...refs, accountId: settleAccount, credit: recv.amount, assetAmount: toReceivable, memo: s.method === "accrual" ? `Settles ${inv.number}` : `Revenue: ${inv.title ?? inv.number}` }
+    { ...refs, accountId: settleAccount, credit: recv.amount - taxValue, assetAmount: toReceivable - taxShare, memo: s.method === "accrual" ? `Settles ${inv.number}` : `Revenue: ${inv.title ?? inv.number}` }
   ];
+  if (taxValue > 0n) {
+    const taxes = await systemAccount(client, p.organization_id, p.environment, "taxes_payable");
+    lines.push({ ...refs, accountId: taxes.id, credit: taxValue, assetAmount: taxShare, memo: `Tax collected on ${inv.number}` });
+  }
   if (credits && credit > 0n) lines.push({ ...refs, accountId: credits, credit, assetAmount: excess, memo: `Paid beyond ${inv.number}` });
   return postEntry(client, {
     organizationId: p.organization_id,
@@ -430,6 +438,9 @@ async function postInvoiceIssued(client: Client, s: BooksSettings, inv: Row): Pr
   const revenue = inv.revenue_account_id ?? (await systemAccount(client, inv.organization_id, inv.environment, "sales")).id;
   const customer = (await client.query("SELECT name FROM customers WHERE id = $1", [inv.customer_id])).rows[0] as Row;
   const refs: Partial<LineInput> = { invoiceId: inv.id, customerId: inv.customer_id, assetId: inv.asset_id, assetAmount: BigInt(inv.amount_due), rateSource };
+  const taxUnits = BigInt(inv.tax_amount ?? 0);
+  const tax = taxUnits > 0n ? valueInReporting(inv.asset_id, taxUnits, s.reportingCurrency).amount : 0n;
+  const taxLine: LineInput[] = tax > 0n ? [{ ...refs, accountId: (await systemAccount(client, inv.organization_id, inv.environment, "taxes_payable")).id, credit: tax, assetAmount: taxUnits, memo: `Tax on ${inv.number}` }] : [];
   return postEntry(client, {
     organizationId: inv.organization_id,
     environment: inv.environment,
@@ -442,9 +453,23 @@ async function postInvoiceIssued(client: Client, s: BooksSettings, inv: Row): Pr
     actor: SYSTEM,
     lines: [
       { ...refs, accountId: ar.id, debit: amount, memo: `${customer.name} owes ${inv.number}` },
-      { ...refs, accountId: revenue, credit: amount, memo: inv.title ?? "Revenue" }
+      { ...refs, accountId: revenue, credit: amount - tax, assetAmount: BigInt(inv.amount_due) - taxUnits, memo: inv.title ?? "Revenue" },
+      ...taxLine
     ]
   });
+}
+
+/**
+ * The share of an invoice's tax in one application, in asset units. Cumulative rounding: the tax on
+ * everything applied so far, minus the tax on what was applied before, so the parts always sum to the
+ * invoice's tax once it's fully paid.
+ */
+export function taxPortion(inv: Row, appliedBefore: bigint, applying: bigint): bigint {
+  const tax = BigInt(inv.tax_amount ?? 0);
+  const gross = BigInt(inv.amount_due);
+  if (tax <= 0n || gross <= 0n || applying <= 0n) return 0n;
+  const cap = (v: bigint) => (v > gross ? gross : v < 0n ? 0n : v);
+  return (cap(appliedBefore + applying) * tax) / gross - (cap(appliedBefore) * tax) / gross;
 }
 
 async function postInvoiceCancelled(client: Client, s: BooksSettings, inv: Row): Promise<{ created: boolean } | null> {

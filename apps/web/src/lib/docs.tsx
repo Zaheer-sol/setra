@@ -255,7 +255,8 @@ curl https://setra.up.railway.app/api/v1/orders \\
   -H "Content-Type: application/json" \\
   -d '{
     "external_id": "9281",
-    "amount": "1000.00",
+    "amount": "1075.00",
+    "tax": "75.00",
     "customer": { "external_ref": "alice_123", "name": "Alice", "email": "alice@example.com" },
     "metadata": { "cart": "c_77" }
   }'
@@ -265,6 +266,7 @@ curl https://setra.up.railway.app/api/v1/orders \\
             <tr><td><code>external_id</code></td><td>Your order ID. Required.</td></tr>
             <tr><td><code>customer</code></td><td>Found by <code>external_ref</code> (your customer ID) or <code>email</code>, and created the first time. Or pass <code>customer_id</code>.</td></tr>
             <tr><td><code>amount</code> or <code>line_items</code></td><td>What you expect to be paid, as a decimal string.</td></tr>
+            <tr><td><code>tax</code></td><td>Optional. The sales tax or VAT already inside the amount. It&apos;s booked to Taxes Payable, not revenue.</td></tr>
             <tr><td><code>status</code></td><td><code>&quot;cancelled&quot;</code> cancels the order.</td></tr>
             <tr><td><code>number</code>, <code>title</code>, <code>due_at</code>, <code>metadata</code></td><td>Optional. Metadata comes back in every event about the order.</td></tr>
           </tbody>
@@ -273,7 +275,8 @@ curl https://setra.up.railway.app/api/v1/orders \\
         <h2>From a connected source</h2>
         <p>Under Developers, then Orders, connect a source once. Setra gives it an address to post orders to.</p>
         <ul>
-          <li><strong>Shopify</strong>: add order creation, update and cancellation webhooks in JSON with that address. Setra checks Shopify&apos;s signature. Orders waiting for payment in USD become expected payments; orders Shopify already collected are skipped.</li>
+          <li><strong>Shopify</strong>: add order creation, update and cancellation webhooks in JSON with that address. Setra checks Shopify&apos;s signature. Orders waiting for payment in USD become expected payments, with Shopify&apos;s tax booked as tax. When Shopify reports an order paid by card or refunded, Setra closes it, unless a stablecoin payment already arrived.</li>
+          <li><strong>WooCommerce</strong>: Setra gives you a secret. Add &ldquo;Order created&rdquo; and &ldquo;Order updated&rdquo; webhooks under WooCommerce, Settings, Advanced, Webhooks, with that address and secret. Pending and on-hold orders become expected payments; processing, completed, refunded and cancelled orders close in Setra if nothing was paid in stablecoins.</li>
           <li><strong>Your checkout or backend</strong>: post the same JSON as the orders API, signed like Setra&apos;s webhooks (<code>X-Setra-Timestamp</code>, <code>X-Setra-Signature</code>), with <code>X-Setra-Delivery-Id</code> so retries are recognised.</li>
         </ul>
         <p>Every delivery is recorded once, with what Setra did with it, on the source&apos;s activity list.</p>
