@@ -37,19 +37,24 @@ Pick one. Both are under 100 characters.
 
 ### GTM & user acquisition strategy
 
-> **Who we sell to first.** Small businesses already being paid in USDC: agencies, studios and freelancers with clients abroad, online stores that accept stablecoins, and software companies selling to crypto-native customers. They feel the problem every week, because their payments arrive as wallet addresses and their bookkeeping happens in spreadsheets. We start with teams building and selling on Monad, where we can reach founders directly.
+(Full plan in `docs/gtm.md`. This version fits a form field.)
+
+> **Who we sell to first.** Small businesses already paid in USDC, starting on Monad: agencies and freelancers with clients abroad, online stores that accept stablecoins, and companies selling to crypto-native customers. The problem shows up with every payment ("who sent this?") and gets expensive at month end, when someone reconciles by hand. Frequent and costly problems are where word of mouth and content compound.
 >
 > **How they find us.**
-> - The Monad ecosystem first: founders from Metropolis and the Monad community who invoice clients in USDC. We'll offer the first five a hands-on pilot.
-> - Accountants and bookkeepers who serve crypto businesses. One accountant brings many clients, and Setra's QuickBooks and Xero exports fit how they already work.
-> - Store connections. Setra already takes orders from Shopify and WooCommerce. Listing in their app stores puts Setra in front of merchants who start accepting stablecoins.
-> - Plain-language guides on questions owners search for, such as how to record a USDC payment in the books or how to handle sales tax on a stablecoin sale.
+> - **The Monad ecosystem first:** founders from Metropolis and the Monad community who invoice clients in USDC, reached directly by the founder with a free setup call.
+> - **Every invoice is an ad:** each payment page says "Powered by Setra", and the person paying is often a business too. One click takes them to Setra.
+> - **Accountants and bookkeepers:** one bookkeeper serving crypto businesses brings many clients, and Setra exports to QuickBooks and Xero, the tools they already use.
+> - **Store app listings:** Setra already takes orders from Shopify and WooCommerce; listing there reaches merchants the moment they start accepting stablecoins.
+> - **Guides people search for:** how to record a USDC payment, handle sales tax on a stablecoin sale, or reconcile a wallet.
 >
-> **How they start.** Test mode is free and needs no card. A business can connect a wallet, send itself an invoice and watch it reach the books in a few minutes. Pilots are a fixed $1,000 for four weeks of hands-on setup, credited toward the first three months.
+> No paid ads until we know what a customer costs to win.
 >
-> **How we make money.** A monthly subscription by payment volume, never a percentage of payments: $499 a month for up to 1,000 payments, $1,499 for up to 10,000, custom above that. A card processor takes a slice of every sale; Setra charges for the software.
+> **How they start and stay.** Free with no card: connect a wallet, send an invoice, and watch the payment reach the books in minutes. Businesses stay because they close their months in Setra, their accountant works from its exports, and Seti makes the books part of the daily routine.
 >
-> **What we measure.** The first matched payment (activation), months closed in Setra (retention) and payments per month (expansion). Our goal for the next 90 days is five pilot businesses and the first paying customer.
+> **How we make money.** A monthly price set by payments received, never a percentage of the money: free up to 20 payments a month, $49 up to 200, $149 up to 2,000, custom above. The first 20 businesses get half price for a year with hands-on setup.
+>
+> **What we measure.** Payments matched per month (north star), a first matched payment within 24 hours (activation), months closed in Setra (retention), and sign-ups from payment pages and partners (referral). Our 90-day goal: 20 businesses using Setra, 5 paying, and one accountant partner with at least three clients.
 
 ---
 
