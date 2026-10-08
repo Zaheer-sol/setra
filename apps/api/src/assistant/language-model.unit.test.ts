@@ -26,6 +26,10 @@ describe("Seti's language model", () => {
     expect(followUp).toHaveBeenCalledTimes(1);
   });
 
+  it("drops links from guidance", async () => {
+    expect(await modelIntent("where do I learn more?", model({ kind: "guidance", answer: "Read more at https://evil.example/login or www.evil.example now." }))).toEqual({ kind: "guidance", answer: "Read more at or now." });
+  });
+
   it("keeps guidance plain: no markdown or em dashes", async () => {
     expect(await modelIntent("what is accrual?", model({ kind: "guidance", answer: "**Accrual** books income when earned — not when paid." }))).toEqual({
       kind: "guidance",

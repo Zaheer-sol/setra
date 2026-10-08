@@ -174,7 +174,8 @@ function normalized(message: string, raw: z.infer<typeof intentSchema>, history:
       return { kind: "record_bill", amount: amount(raw.amount), vendor: clean(stated(message, raw.vendor)), title: titled(raw.title), number: stated(message, raw.number), due: raw.due };
     case "guidance":
       // Shown as-is, so keep it plain: no markdown emphasis or headings, no em dashes.
-      return { kind: "guidance", answer: raw.answer.replace(/\*\*|__|^#+\s*/gm, "").replace(/\s*[—–]\s*/g, ", ").replace(/[‘’]/g, "'").trim() };
+      // No links either: Seti's own answers never send people off to another site.
+      return { kind: "guidance", answer: raw.answer.replace(/\*\*|__|^#+\s*/gm, "").replace(/\s*[—–]\s*/g, ", ").replace(/[‘’]/g, "'").replace(/\b(?:https?:\/\/|www\.)\S+/gi, "").replace(/[ \t]{2,}/g, " ").trim() };
     default:
       return raw as Intent;
   }
