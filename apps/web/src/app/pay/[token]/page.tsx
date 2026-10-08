@@ -97,7 +97,10 @@ function PayFrame({ children, testMode }: { children: React.ReactNode; testMode?
       <main id="main" className="mx-auto max-w-[480px] px-4 pt-14 pb-12 max-sm:pt-5">
         {children}
         <p className="mt-5 text-center text-xs leading-relaxed text-muted-foreground">
-          <Lock className="mr-1 inline size-3 align-[-2px]" aria-hidden="true" /> Payments go directly to the merchant&rsquo;s wallet. Powered by <strong className="text-foreground/70">Setra</strong>
+          <Lock className="mr-1 inline size-3 align-[-2px]" aria-hidden="true" /> Payments go directly to the merchant&rsquo;s wallet. Powered by{" "}
+          <a href="/?from=payment-page" target="_blank" rel="noopener" className="font-semibold text-foreground/70 hover:underline">
+            Setra
+          </a>
         </p>
       </main>
     </div>

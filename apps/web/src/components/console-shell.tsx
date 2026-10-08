@@ -186,6 +186,8 @@ function ConsoleSidebar() {
   const getPaid: NavLink[] = [
     { href: "/app/invoices", label: "Invoices", icon: Receipt },
     { href: "/app/payments", label: "Payments", icon: ArrowDownLeft },
+    // The core job: every payment checked against what was expected.
+    { href: "/app/reconciliation", label: "Reconciliation", icon: Scale },
     { href: "/app/customers", label: "Customers", icon: Users },
     { href: "/app/wallets", label: "Wallets", icon: Wallet }
   ];
@@ -200,8 +202,7 @@ function ConsoleSidebar() {
     ...(can("financials:read")
       ? [
           { href: "/app/accounting/journal", label: "Journal", icon: NotebookPen },
-          { href: "/app/accounting/accounts", label: "Chart of accounts", icon: ListTree },
-          { href: "/app/reconciliation", label: "Reconciliation", icon: Scale }
+          { href: "/app/accounting/accounts", label: "Chart of accounts", icon: ListTree }
         ]
       : []),
     { href: "/app/developers", label: "Developers", icon: Code2 },
