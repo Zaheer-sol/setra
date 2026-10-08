@@ -6,6 +6,8 @@ import { accountForFinancialEvent, accountForOutgoingTransfer, accountInvoiceCan
 import { isoDate } from "./ledger";
 import { money, payablesAging, receivablesAging } from "./reports";
 import { accountForNetworkFee } from "./network-fees";
+import { onchainBalance } from "./onchain-balance";
+import { networks } from "@setra/config";
 
 type Row = Record<string, any>;
 
@@ -94,6 +96,46 @@ export async function booksHealth(client: Client, organizationId: string, enviro
       difference: money(actual - expected),
       link: `/app/accounting/ledger?account_id=${a.id}`
     });
+  }
+
+  // Every wallet account against the wallet's real balance on chain. Simulated test payments never
+  // touched the chain, so they're taken out first.
+  for (const a of walletAccounts) {
+    const wallet = (await client.query("SELECT address, chain_id FROM wallets WHERE id = $1", [a.wallet_id])).rows[0] as Row | undefined;
+    const found = networks().asset(a.asset_id);
+    if (!wallet || !found) continue;
+    const label = `${a.name} matches its balance on ${found.network.name}`;
+    const simulated = BigInt((await client.query<{ s: string }>("SELECT COALESCE(sum(amount), 0)::text AS s FROM payments WHERE wallet_id = $1 AND asset_id = $2 AND source = 'simulated' AND status NOT IN ('confirming','reversed')", [a.wallet_id, a.asset_id])).rows[0]!.s);
+    const chain = await onchainBalance(Number(wallet.chain_id), found.asset.address, wallet.address);
+    if (!chain) {
+      checks.push({ key: `onchain:${a.id}`, label, status: "not_checked", detail: `Couldn't read the balance from ${found.network.name} just now. Try again in a minute.` });
+      continue;
+    }
+    let books: bigint;
+    let onChain: bigint;
+    try {
+      books = (await netOf(client, a.id)) - valueInReporting(a.asset_id, simulated, s.reportingCurrency).amount;
+      onChain = valueInReporting(a.asset_id, chain.balance, s.reportingCurrency).amount;
+    } catch {
+      continue;
+    }
+    const block = chain.blockNumber.toLocaleString("en-US");
+    if (books === onChain) {
+      checks.push({ key: `onchain:${a.id}`, label, status: "ok", detail: `The books agree with ${found.network.name} at block ${block}.`, expected: money(onChain), actual: money(books), link: `/app/accounting/ledger?account_id=${a.id}` });
+    } else if (simulated > 0n && environment === "test") {
+      checks.push({ key: `onchain:${a.id}`, label, status: "not_checked", detail: `This wallet has simulated test payments mixed with other entries, so it can't be compared with ${found.network.name} exactly.` });
+    } else {
+      checks.push({
+        key: `onchain:${a.id}`,
+        label,
+        status: "attention",
+        detail: `${found.network.name} shows ${usd(onChain)} at block ${block}; the books show ${usd(books)}. Money held before monitoring began needs an opening balance; a transfer Setra didn't see is fixed by running repair.`,
+        expected: money(onChain),
+        actual: money(books),
+        difference: money(books - onChain),
+        link: `/app/accounting/ledger?account_id=${a.id}`
+      });
+    }
   }
 
   // Holding accounts that should empty out as things are identified and classified.

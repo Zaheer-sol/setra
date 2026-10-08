@@ -13,6 +13,7 @@ export * from "./classifications";
 export * from "./business-events";
 export * from "./reports";
 export * from "./books-health";
+export * from "./onchain-balance";
 export * from "./exchange-rates";
 export * from "./network-fees";
 export * from "./bank-reconciliation";

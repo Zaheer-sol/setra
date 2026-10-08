@@ -33,6 +33,8 @@ export interface ChainAdapter {
   getTransactionReceipt(hash: Hex): Promise<{ status: "success" | "reverted"; blockNumber: bigint; blockHash: Hex } | null>;
   /** Who sent a transaction and the native-token fee it paid (gas × effective price, plus any L1 data fee). */
   getTransactionFee?(hash: Hex): Promise<{ from: string; fee: bigint } | null>;
+  /** An ERC-20 balance at the settled head, the number to reconcile the books against. */
+  getTokenBalance?(token: Hex, owner: Hex): Promise<{ balance: bigint; blockNumber: bigint }>;
   /** Optional low-latency wake-up signal. Polling remains the source of truth. */
   watchHeads?(onHead: (blockNumber: bigint) => void, onError: (error: Error) => void): () => void;
 }
@@ -131,6 +133,18 @@ export class EvmAdapter implements ChainAdapter {
       }
       throw new RpcError(`eth_getLogs failed on ${this.network.key}: ${(error as Error).message?.split("\n")[0]}`, true, error);
     }
+  }
+
+  async getTokenBalance(token: Hex, owner: Hex): Promise<{ balance: bigint; blockNumber: bigint }> {
+    const head = await this.getSettledHead();
+    const balance = (await this.client.readContract({
+      address: token,
+      abi: [{ type: "function", name: "balanceOf", stateMutability: "view", inputs: [{ name: "owner", type: "address" }], outputs: [{ name: "", type: "uint256" }] }],
+      functionName: "balanceOf",
+      args: [owner],
+      blockNumber: head.number
+    })) as bigint;
+    return { balance, blockNumber: head.number };
   }
 
   async getTransactionReceipt(hash: Hex) {
