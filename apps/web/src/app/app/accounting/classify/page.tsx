@@ -1,6 +1,5 @@
 "use client";
 
-import { CounterpartyInsight } from "@/components/counterparty";
 import Link from "next/link";
 import { useState } from "react";
 import { ArrowDownLeft, ArrowUpRight, CheckCircle2 } from "lucide-react";
@@ -48,7 +47,6 @@ function ClassifyView() {
                       <p className="text-sm text-muted-foreground">
                         From <span className="font-mono">{shortAddress(r.from_address)}</span> · {calendarDate(r.received_at.slice(0, 10))} · <TxProof hash={r.transaction_hash} />
                       </p>
-                      <CounterpartyInsight paymentId={r.id} compact />
                     </div>
                     <div className="flex gap-2">
                       <Link href={r.link} className="inline-flex h-8 items-center rounded-md px-3 text-sm font-medium hover:bg-accent">Apply to invoice</Link>
@@ -72,7 +70,6 @@ function ClassifyView() {
                       <p className="text-sm text-muted-foreground">
                         To {t.vendor ? <span className="font-medium text-foreground">{t.vendor.name}</span> : <span className="font-mono">{shortAddress(t.to_address)}</span>} from {t.wallet.name} · {calendarDate(t.sent_at.slice(0, 10))} · <TxProof hash={t.transaction_hash} />
                       </p>
-                      {!t.vendor && <CounterpartyInsight outgoingId={t.id} compact />}
                     </div>
                     {write && (
                       <div className="flex flex-wrap gap-2">

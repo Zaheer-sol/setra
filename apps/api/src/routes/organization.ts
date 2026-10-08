@@ -38,13 +38,13 @@ export function organizationRoutes(app: FastifyInstance) {
           c.query(
             `UPDATE organizations SET name = COALESCE($2, name), support_email = CASE WHEN $3::boolean THEN $4 ELSE support_email END,
                onboarding_completed_at = CASE WHEN $5::boolean IS TRUE AND onboarding_completed_at IS NULL THEN now() ELSE onboarding_completed_at END,
-               counterparty_intel_enabled = COALESCE($6, counterparty_intel_enabled), updated_at = now()
+               updated_at = now()
              WHERE id = $1 RETURNING *`,
-            [organizationId, body.name ?? null, body.support_email !== undefined, body.support_email ?? null, body.onboarding_completed ?? null, body.counterparty_intel_enabled ?? null]
+            [organizationId, body.name ?? null, body.support_email !== undefined, body.support_email ?? null, body.onboarding_completed ?? null]
           )
         )
       ).rows[0];
-      await tx((c) => audit(c, actor, { organizationId, action: "organization_updated", objectType: "organization", objectId: organizationId, previous: { name: before.name, support_email: before.support_email, counterparty_intel_enabled: before.counterparty_intel_enabled }, next: body }));
+      await tx((c) => audit(c, actor, { organizationId, action: "organization_updated", objectType: "organization", objectId: organizationId, previous: { name: before.name, support_email: before.support_email }, next: body }));
       return serializeOrg(org);
     }
   });
@@ -215,8 +215,6 @@ function serializeOrg(org: Record<string, any>) {
     support_email: org.support_email ?? null,
     is_demo: org.is_demo,
     onboarding_completed: org.onboarding_completed_at !== null,
-    counterparty_intel_enabled: org.counterparty_intel_enabled ?? false,
-    counterparty_intel_available: !!process.env.NANSEN_API_KEY,
     created_at: org.created_at
   };
 }

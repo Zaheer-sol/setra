@@ -213,46 +213,4 @@ describe("accounting API", () => {
     expect((await seti("How much profit did we make this month?"))[0]).toMatchObject({ type: "notice", title: "Your role can't see the books." });
   });
 
-  it("counterparty intelligence: off by default, needs a key, explains exchange senders, and caches", async () => {
-    const s = await signup();
-    await setupWorkspace(s);
-    const unknown = (await call("POST", "/v1/test/payments", auth(s), { scenario: "unknown", amount: "740.00" })).data;
-    const lookup = async () => (await call("GET", `/v1/payments/${unknown.id}/counterparty`, auth(s))).data;
-    expect((await lookup()).status).toBe("disabled");
-    await call("PATCH", "/v1/organization", auth(s), { counterparty_intel_enabled: true });
-    const saved = process.env.NANSEN_API_KEY;
-    delete process.env.NANSEN_API_KEY;
-    expect((await lookup()).status).toBe("not_configured");
-    process.env.NANSEN_API_KEY = "test-key";
-    const realFetch = globalThis.fetch;
-    let calls = 0;
-    let relationCalls = 0;
-    globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) => {
-      if (String(url).endsWith("/profiler/address/counterparties")) {
-        relationCalls += 1;
-        return new Response(JSON.stringify({ pagination: { page: 1, per_page: 100, is_last_page: true }, data: [] }), { status: 200, headers: { "content-type": "application/json" } });
-      }
-      if (String(url).includes("api.nansen.ai")) {
-        calls += 1;
-        const body = JSON.parse(String(init?.body));
-        expect(body.chain).toBe("monad");
-        expect((init?.headers as Record<string, string>).apikey).toBe("test-key");
-        return new Response(JSON.stringify({ pagination: { page: 1, per_page: 50, is_last_page: true }, data: [{ label: "Binance: Hot Wallet", category: "cex", kind: ["entity"] }] }), { status: 200, headers: { "content-type": "application/json" } });
-      }
-      return realFetch(url as never, init);
-    }) as typeof fetch;
-    try {
-      const first = await lookup();
-      expect(first).toMatchObject({ status: "ok", kind: "exchange", mainnetLabelsForTestnet: true, cached: false });
-      expect(first.summary).toMatch(/exchange/);
-      expect(first.suggestion).toMatch(/Don't save this address/);
-      expect((await lookup()).cached).toBe(true);
-      expect(calls).toBe(1);
-      expect(relationCalls).toBe(1); // who the unknown sender has dealt with, cached the same way
-    } finally {
-      globalThis.fetch = realFetch;
-      if (saved === undefined) delete process.env.NANSEN_API_KEY;
-      else process.env.NANSEN_API_KEY = saved;
-    }
-  });
 });

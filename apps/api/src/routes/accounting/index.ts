@@ -19,7 +19,6 @@ import { yearEndRoutes } from "./year-end";
 import { accountantExportRoutes } from "./accountant-exports";
 import { attachmentRoutes } from "./attachments";
 import { recurringBillRoutes } from "./recurring-bills";
-import { counterpartyRoutes } from "./counterparty";
 import { monthCloseRoutes } from "./month-close";
 import { booksAttestationRoutes } from "./books-attestation";
 
@@ -45,7 +44,6 @@ export function accountingRoutes(app: FastifyInstance) {
   accountantExportRoutes(app);
   attachmentRoutes(app);
   recurringBillRoutes(app);
-  counterpartyRoutes(app);
   monthCloseRoutes(app);
   booksAttestationRoutes(app);
 }

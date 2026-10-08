@@ -230,7 +230,7 @@ const MORE_CAPABILITIES = [
   "A few things people don't expect:",
   "",
   "• Explain why a payment was matched to an invoice, or why it wasn't",
-  "• Tell you who's probably behind an unknown wallet",
+  "• Explain a payment from an unknown wallet and what it could be for",
   "• Show everything about one customer: invoices, payments, what they owe",
   "• Find a payment by amount, wallet address or transaction hash",
   "• Explain why profit moved compared with last month"
@@ -790,7 +790,7 @@ async function historyForCustomer(ctx: AssistantContext, customerId: string, nam
   };
 }
 
-/** "Who sent the $740?": the public picture of the wallet behind an unidentified payment (Nansen), as advice. */
+/** "Who sent the $740?": what Setra knows about an unidentified payment, the invoices it could be for, and what to do. */
 async function whoSent(ctx: AssistantContext, amount?: string): Promise<Reply> {
   const pending = (await api<{ data: Any[] }>(ctx, "GET", `/v1/payments?${qs({ status: "needs_review", limit: 25 })}`)).data.filter((p) => !p.customer);
   const target = amount ? pending.find((p) => p.amount === amount) : pending[0];
@@ -800,28 +800,33 @@ async function whoSent(ctx: AssistantContext, amount?: string): Promise<Reply> {
       : "There's no unidentified payment right now. Every payment so far came from a customer I could place.";
     return { intent: "who_sent", pending: null, blocks: [{ type: "text", text }] };
   }
-  const [detail, intel] = await Promise.all([api(ctx, "GET", `/v1/payments/${target.id}`), api(ctx, "GET", `/v1/payments/${target.id}/counterparty`)]);
+  // Everything Setra knows about it: where it came from, why it was held, and what it could be for.
+  const detail = await api(ctx, "GET", `/v1/payments/${target.id}`);
   const paid = `${formatAmount(detail.amount)} ${detail.asset?.symbol ?? ""}`.trim();
   const card: Block = { type: "payment", ...paymentTitle(detail), payment: paymentCard(detail), note: paymentNote(detail) };
-  if (intel.status === "disabled") {
-    return { intent: "who_sent", pending: null, blocks: [{ type: "notice", tone: "info", title: "I can check who's behind that wallet, but counterparty lookups are off.", text: "Turn them on in Settings. Setra then asks Nansen for the wallet's public labels.", link: { label: "Open Settings", href: "/app/settings" } }, card] };
+  const openException = (detail.exceptions ?? []).find((x: Any) => x.status === "open");
+  const exception = openException ? await api(ctx, "GET", `/v1/exceptions/${openException.id}`) : null;
+  const candidates: Any[] = exception?.candidates ?? [];
+  const from = detail.sender ? `${String(detail.sender).slice(0, 6)}…${String(detail.sender).slice(-4)}` : "a wallet";
+  const blocks: Block[] = [{ type: "text", text: `The ${paid} came from ${from}, a wallet that isn't saved to any of your customers, so I held it instead of guessing.` }];
+  if (candidates.length) {
+    blocks.push({
+      type: "summary",
+      title: "It could be for",
+      rows: candidates.slice(0, 4).map((c): Row => [`${c.number} · ${c.customer_name}`, `${formatAmount(c.amount_remaining)} still due${c.reasons?.length ? `. ${c.reasons[0]}` : ""}`]),
+      highlight: { label: "Possible invoices", value: String(candidates.length) },
+      link: exception ? { label: "Decide in Needs review", href: `/app/exceptions/${exception.id}` } : undefined
+    });
   }
-  if (intel.status !== "ok" && intel.status !== "none") return { intent: "who_sent", pending: null, blocks: [{ type: "notice", tone: "info", title: intel.message ?? "I couldn't look that wallet up right now." }, card] };
-  const related: Any[] = intel.related_customers ?? [];
-  const top = related[0];
-  const lead = top ? ` That wallet has moved money with ${top.customer_name}'s saved wallet ${top.interactions === 1 ? "once" : `${top.interactions} times`}, so I'd start with ${top.customer_name}'s open invoices.` : "";
-  return {
-    intent: "who_sent",
-    pending: null,
-    blocks: [
-      { type: "text", text: `The ${paid} came from ${intel.address.slice(0, 6)}…${intel.address.slice(-4)}. ${intel.summary}${lead}` },
-      { type: "text", text: `What I'd do: ${lowerFirst(intel.suggestion)} It's a clue from Nansen's public data, not a match, so the decision is yours.` },
-      card
-    ]
-  };
+  blocks.push({
+    type: "text",
+    text: `What I'd do: check with the customer you were expecting to pay, then assign it in Needs review with a reason.${candidates.length ? "" : " If it isn't a customer payment, classify it instead, for example as an owner contribution."} If it came from an exchange, don't save that address to the customer: many people pay from the same exchange wallet.`
+  });
+  blocks.push(card);
+  return { intent: "who_sent", pending: null, blocks };
 }
 
-const lowerFirst = (s: string) => s.charAt(0).toLowerCase() + s.slice(1);
+
 
 async function find(ctx: AssistantContext, query: string): Promise<Reply> {
   const [payments, invoices] = await Promise.all([api<{ data: Any[] }>(ctx, "GET", `/v1/payments?${qs({ search: query, limit: 5 })}`), api<{ data: Any[] }>(ctx, "GET", `/v1/invoices?${qs({ search: query, limit: 5 })}`)]);

@@ -107,36 +107,4 @@ A post you can use with the pitch video or a screenshot:
 
 ## 5. Bounties
 
-### Best use of Nansen
-
-[Only submit this if `NANSEN_API_KEY` is set on Railway and counterparty lookups are switched on in the demo workspace. Otherwise reviewers will see an empty panel.]
-
-**What we built with Nansen**
-
-> Setra's hardest case is money nobody can identify: a payment arrives from a wallet that isn't saved to any customer. Setra won't guess, so the payment waits for a person. Nansen helps that person decide. Setra asks Nansen who is behind the wallet and turns the answer into accounting advice:
->
-> - **Unknown payments:** Nansen's address labels become a plain explanation and a next step. For example: "Labelled as an exchange wallet. A customer probably paid from their exchange account, so match by amount and date, and don't save this address to a customer."
-> - **The likely customer:** Nansen's counterparties data shows whether the unknown wallet has dealt with a wallet already saved for one of the business's customers. "This wallet has transacted with Acme Ltd's saved wallet 3 times in the last year."
-> - **Before saving an address:** Setra warns when someone tries to save an exchange, bridge or app address to a single customer, which would make strangers' future payments match that customer.
-> - **Money going out:** labels for the recipient of a transfer waiting to be classified, with advice on how to record it.
-> - **Seti:** "Who sent the $740?" gets the label, the likely customer and a suggested next step in one answer.
->
-> Nansen never decides anything. Matching stays rule-based and every suggestion is for a person to confirm, which is what makes it safe to use in accounting.
-
-**Nansen data used**
-
-> Address labels (`/api/v1/profiler/address/labels`) and address counterparties (`/api/v1/profiler/address/counterparties`) on chain `monad`. Test-mode addresses use their Monad mainnet labels, and Setra says so.
-
-**How it goes beyond raw data**
-
-> Setra doesn't display labels. It reads them into a kind of wallet (exchange, bridge, fund, contract, protocol, private wallet), combines that with the business's own customers and open invoices, and produces a specific bookkeeping decision. The same labels always give the same advice.
-
-**Where to see it**
-
-> In the app: an unknown payment's page or Needs review, then "Who sent this?". Also the customer and vendor forms, the Classify page for money going out, and Seti.
->
-> Code: `packages/engine/src/intel/counterparty.ts`, `apps/api/src/routes/accounting/counterparty.ts`, `apps/web/src/components/counterparty.tsx`, tests in `apps/api/test/counterparty.test.ts`. Full write-up: `docs/nansen.md`.
-
-**Privacy and cost**
-
-> Off by default per workspace, because the sender's address is sent to Nansen. Answers are cached for a week, credits are only spent when a person asks, and a failed lookup is explained in plain words.
+[Bounty fields go here once the bounty is chosen.]

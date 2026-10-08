@@ -17,4 +17,3 @@ export * from "./workspaces";
 export * from "./execution-events";
 export * from "./corrections";
 export * from "./accounting";
-export * from "./intel/counterparty";

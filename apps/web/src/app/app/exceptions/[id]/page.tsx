@@ -3,7 +3,6 @@
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
-import { useSenderIntel } from "@/components/counterparty";
 import { ExceptionType, PaymentStatus, RefundPicker } from "@/components/payment-tables";
 import { useSession } from "@/components/session";
 import { Address, Alert, Badge, BigMoney, Button, ButtonLink, Card, CardBody, Chain, Checks, ChoiceCard, ChoiceGroup, ErrorState, Field, fieldErrors, KV, Money, Mono, PageHeader, Select, SimulatedTag, SkeletonBlock, Stack, StatusLine, Textarea, TextLink, useToast } from "@/components/app-ui";
@@ -180,11 +179,6 @@ function ResolveForm({ exception: e, onDone }: { exception: any; onDone: () => v
   const [transferId, setTransferId] = useState<string>(e.refund_candidates?.[0]?.id ?? "");
   const [reason, setReason] = useState("");
   const [remember, setRemember] = useState(e.type === "unknown_payment" || e.type === "ambiguous_match");
-  // An exchange or app address is shared by many people: remembering it would tie strangers' payments to this customer.
-  const sender = useSenderIntel(e.customer ? undefined : e.payment_id);
-  useEffect(() => {
-    if (sender.shared) setRemember(false);
-  }, [sender.shared]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   useEffect(() => setError(null), [action]);
@@ -241,11 +235,7 @@ function ResolveForm({ exception: e, onDone }: { exception: any; onDone: () => v
                 <Label htmlFor="remember" className="grid gap-0.5 leading-normal font-normal">
                   Remember this sender for the invoice&rsquo;s customer
                   <span className="text-xs text-muted-foreground">Future payments from {e.payment.sender.slice(0, 8)}… will be recognized automatically.</span>
-                  {sender.shared && (
-                    <span className="text-xs text-warning">
-                      Nansen labels this as a shared address{sender.labels[0] ? ` (${sender.labels[0].label})` : ""}. Other people pay from it too, so it&rsquo;s safer not to remember it.
-                    </span>
-                  )}
+                  <span className="text-xs text-muted-foreground">Leave this off if the money came from an exchange: many people pay from the same exchange address.</span>
                 </Label>
               </div>
             )}

@@ -62,8 +62,6 @@ export const updateOrganizationInput = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   support_email: z.string().trim().email().max(254).nullable().optional(),
   onboarding_completed: z.boolean().optional(),
-  /** Look up public labels (Nansen) for the senders of unidentified payments. Sends the address to Nansen. */
-  counterparty_intel_enabled: z.boolean().optional()
 });
 export const inviteMemberInput = z.object({ email: z.string().trim().toLowerCase().email(), role: z.enum(ROLES).exclude(["owner"]) });
 export const updateMemberInput = z.object({ role: z.enum(ROLES).exclude(["owner"]) });

@@ -1,6 +1,5 @@
 "use client";
 
-import { CounterpartyInsight } from "@/components/counterparty";
 import { PaymentCredit } from "@/components/customer-credits";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -261,7 +260,6 @@ export default function PaymentDetailPage() {
           </Card>
 
           <PaymentCredit paymentId={p.id} asset={p.asset?.symbol} onChange={() => mutate()} />
-          {!p.customer && p.status !== "reversed" && <CounterpartyInsight paymentId={p.id} />}
 
           {p.refunds.length > 0 && (
             <Card title="Refunds" description={`${money(p.refunds_summary.refunded)} sent back${p.refunds_summary.refundable !== "0.00" ? `, ${money(p.refunds_summary.refundable)} still refundable` : ""}.`}>

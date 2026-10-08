@@ -4,7 +4,6 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { InvoicesTable, PaymentsTable } from "@/components/payment-tables";
-import { AddressCheck } from "@/components/counterparty";
 import { useSession } from "@/components/session";
 import { Address, Alert, Button, ButtonLink, Card, CardBody, Chain, CopyButton, DetailGrid, ErrorState, Field, fieldErrors, Input, KV, Metric, Metrics, Modal, PageHeader, SkeletonBlock, SkeletonRows, Stack, useToast } from "@/components/app-ui";
 import { api, useApi, type ApiError } from "@/lib/api";
@@ -146,7 +145,6 @@ function AddAddressModal({ open, onClose, customerId, onDone }: { open: boolean;
         <Field label="Wallet address" htmlFor="ca-addr" error={errs.address}>
           <Input id="ca-addr" className="font-mono" value={address} onChange={(e) => setAddress(e.target.value)} placeholder="0x…" autoFocus spellCheck={false} />
         </Field>
-        <AddressCheck address={address} />
         <Field label="Label" htmlFor="ca-label" optional>
           <Input id="ca-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Treasury" />
         </Field>

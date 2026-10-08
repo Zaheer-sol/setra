@@ -68,8 +68,6 @@ services:
         value: https://testnet-rpc.monad.xyz
       - key: MONAD_TESTNET_LOGS_BLOCK_RANGE
         value: "100"
-      - key: NANSEN_API_KEY
-        sync: false
 
   - type: web
     name: setra-web
