@@ -43,6 +43,13 @@ export type Intent =
   | { kind: "fin_health" }
   | { kind: "fin_unclassified" }
   | { kind: "fin_briefing" }
+  | { kind: "fin_tax"; period: FinPeriod }
+  | { kind: "fin_balance_sheet" }
+  | { kind: "fin_close"; month?: number; year?: number; current?: boolean }
+  | { kind: "fin_top_customers"; period: FinPeriod }
+  | { kind: "fin_export" }
+  | { kind: "classify"; amount?: string; target?: string }
+  | { kind: "explain"; topic: GlossaryTopic }
   | { kind: "record_expense"; amount?: string; title?: string; vendor?: string; paidFrom?: "bank" | "owner" }
   | { kind: "close_period"; month?: number; year?: number; last?: boolean }
   | { kind: "record_bill"; amount?: string; vendor?: string; title?: string; number?: string; due?: DueSpec }
@@ -219,6 +226,14 @@ export function parseIntent(input: string): Intent {
     if (target) return { kind: "correction", customer: clean(customer, 80), payment, target: clean(target)! };
   }
 
+  // "What is accounts receivable?" / "difference between cash and accrual?": explain the idea, never
+  // look up a record. Known terms get Setra's own answer; anything else goes to the model.
+  const noRecord = !invoice && !payment && !tx && !findAmount(original) && !/\b(my|our|we|us|me)\b/.test(t.replace(/^should (?:i|we)\b/, ""));
+  const topic = glossaryTopic(t);
+  const definitional = /^(?:so\s+)?(explain|define|tell me (?:what|about)|what'?s the difference|what is the difference|difference between|how does .+ work|should (?:i|we) (?:record|treat|book|put|use))\b|\bwhat (?:does|do) .+ mean\b|\bmeaning of\b/.test(t);
+  if (noRecord && topic && (definitional || /^(?:so\s+)?(what(?:'s| is| are)|what are)\b/.test(t))) return { kind: "explain", topic };
+  if (noRecord && definitional) return { kind: "unknown" };
+
   const fin = parseFinancial(original, t);
   if (fin) return fin;
 
@@ -326,14 +341,67 @@ function parseFinancial(original: string, t: string): Intent | null {
   if (/\bwhy\b.*\b(profit|revenue|income|expenses?|spending|costs?|margin|earnings)\b|\bcompare(?:d)?\b.*\b(month|year|quarter|last)\b|\b(profit|revenue|expenses?|income)\b.*\b(vs\.?|versus|compared (?:to|with))\b|\bwhat changed\b/.test(t)) return { kind: "fin_compare", period: p ?? "month" };
   if (/\b(are|is)\s+(?:the|my|our)\s+books\b|\bbooks?\s+(?:ok|okay|balanced?|right|correct|healthy|clean|in order)\b|\breconcil(?:e|ed|iation)\b.*\b(books|ledger|accounts?)\b|\btrial balance\b|\bdo (?:the )?books (?:balance|agree)\b/.test(t)) return { kind: "fin_health" };
   if (/\b(unclassified|to classify|needs? classif\w*|uncategori[sz]ed)\b/.test(t)) return { kind: "fin_unclassified" };
+  // "Classify the $740 as an owner contribution" / "mark the 300 transfer as rent"
+  const classifyAs = /\b(?:classify|categori[sz]e|mark|treat|book|record)\b.*?\bas\s+(?:an?\s+|the\s+)?(.+?)[.!?]*$/i.exec(original);
+  if (classifyAs && /\b(classify|categori[sz]e|mark|treat|book|record)\b/.test(t) && (findAmount(original) || /\b\d+(?:\.\d{1,2})?\b/.test(original))) {
+    const bare = /\b(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,6}))?\b/.exec(original);
+    return { kind: "classify", amount: findAmount(original)?.amount ?? (bare ? normalizeAmount(bare[1]!, bare[2], false) ?? undefined : undefined), target: clean(classifyAs[1], 80) };
+  }
+  if (/\b(sales tax|vat|gst)\b|\btax(?:es)?\b.*\b(owe|owed|collect\w*|payable|hold\w*|set aside|due)\b|\bhow much tax\b/.test(t)) return { kind: "fin_tax", period: p ?? "month" };
+  if (/\bbalance sheet\b|\bwhat do (?:we|i) own\b|\bassets? and liabilit|\bnet worth\b|\bwhat (?:we|i) own and\b/.test(t)) return { kind: "fin_balance_sheet" };
+  if (/\b(ready to close|can (?:i|we) close|before (?:i|we) (?:can )?close|close checklist|left (?:to do )?(?:before|to) clos\w*|what'?s (?:stopping|blocking) (?:me|us) (?:from )?clos\w*)\b/.test(t)) {
+    const named = /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\b(?:\s+(\d{4}))?/.exec(t);
+    if (named) return { kind: "fin_close", month: MONTHS.indexOf(named[1]!.slice(0, 3)) + 1, year: named[2] ? Number(named[2]) : undefined };
+    return { kind: "fin_close", current: /\bthis month\b/.test(t) };
+  }
+  if (/\b(top|best|biggest|largest|main) (?:paying )?customers?\b|\bwho pays (?:me|us) the most\b|\b(?:revenue|sales|income) by customer\b/.test(t)) return { kind: "fin_top_customers", period: p ?? "year" };
+  if (/\bexport\b[^.?!]*\b(books|journal|ledger|accounts|entries|accountant|bookkeeper|quickbooks|xero)\b|\b(?:for|to|with) (?:my|our|the) (?:accountant|bookkeeper)\b|\b(?:into|to|for) (?:quickbooks|xero)\b/.test(t)) return { kind: "fin_export" };
+  if (/\bbills?\b[^.?!]*\bdue\b/.test(t)) return { kind: "fin_payables" };
   if (/\b(what|how much) do we owe\b|\bwho do we owe\b|\b(unpaid|open|outstanding|upcoming|due|overdue) bills\b|\bbills? (?:due|to pay|coming up)\b|\bpayables?\b|\bowe (?:to )?vendors?\b/.test(t)) return { kind: "fin_payables" };
-  if (/\bhow much (?:cash|money) do we have\b|\bcash (?:balance|position|on hand)\b|\b(what'?s|what is) (?:our|my|the) (?:cash|balance)\b|\bbalance sheet\b|\bin the bank\b|\brunway\b|\bhow much (?:is|do we have) in (?:the |our )?wallets?\b/.test(t)) return { kind: "fin_cash" };
+  if (/\bhow much (?:cash|money) do we have\b|\bcash (?:balance|position|on hand)\b|\b(what'?s|what is) (?:our|my|the) (?:cash|balance)\b|\bin the bank\b|\brunway\b|\bhow much (?:is|do we have) in (?:the |our )?wallets?\b/.test(t)) return { kind: "fin_cash" };
   const spendOn = /\b(?:spend|spent|spending|expenses?|costs?)\s+(?:on|for)\s+(.+?)(?=\s+(?:this|last|in|so far|year|month|quarter)\b|[.?!]*$)/i.exec(original)?.[1];
   if (spendOn && /\b(how much|what|show|total)\b/.test(t)) return { kind: "fin_spend", category: clean(spendOn, 60)!, period: p ?? "month" };
   if (/\b(profit|p&l|p ?and ?l|profit and loss|income statement|net income|bottom line|margin|losing money|making money|earnings)\b|\bhow much did we (?:make|earn)\b|\bhow (?:are|is) (?:we|the business) doing\b/.test(t)) return { kind: "fin_pl", period: p ?? "month", focus: "profit" };
   if (/\brevenue\b|\b(sales|income) (?:this|last)\b/.test(t)) return { kind: "fin_pl", period: p ?? "month", focus: "revenue" };
   if (/\b(expenses|spending|costs|burn|how much did we spend|what did we spend)\b/.test(t)) return { kind: "fin_pl", period: p ?? "month", focus: "expenses" };
   return null;
+}
+
+// ── glossary ──────────────────────────────────────────────────────────────────────────────────
+
+export type GlossaryTopic =
+  | "cash_vs_accrual"
+  | "accounts_receivable"
+  | "accounts_payable"
+  | "balance_sheet"
+  | "profit_and_loss"
+  | "double_entry"
+  | "reconciliation"
+  | "taxes_payable"
+  | "bill_vs_expense"
+  | "payments_to_identify"
+  | "closing"
+  | "customer_credit"
+  | "finality";
+
+const GLOSSARY: Array<[GlossaryTopic, RegExp]> = [
+  ["bill_vs_expense", /\bbill\b.*\bexpense\b|\bexpense\b.*\bbill\b/],
+  ["cash_vs_accrual", /\baccrual\b|\bcash (?:basis|accounting|method)\b/],
+  ["accounts_receivable", /\b(accounts? receivable|receivables?)\b/],
+  ["accounts_payable", /\b(accounts? payable|payables?)\b/],
+  ["balance_sheet", /\bbalance sheet\b/],
+  ["profit_and_loss", /\b(profit and loss|p&l|p and l|income statement)\b/],
+  ["double_entry", /\b(double.?entry|debits?|credits? and debits?|journal entr\w*)\b/],
+  ["reconciliation", /\breconcil\w*\b/],
+  ["taxes_payable", /\b(taxes payable|sales tax|vat)\b/],
+  ["payments_to_identify", /\b(payments to identify|holding account|suspense)\b/],
+  ["closing", /\bclos(?:e|ing) (?:the |a )?(?:month|books|period)\b/],
+  ["customer_credit", /\b(customer credits?|overpayments?)\b/],
+  ["finality", /\b(finality|finali[sz]ed|final)\b/]
+];
+
+export function glossaryTopic(t: string): GlossaryTopic | undefined {
+  return GLOSSARY.find(([, re]) => re.test(t))?.[0];
 }
 
 /** Calendar bounds (YYYY-MM-DD) for a financial period, in the merchant's time zone. */

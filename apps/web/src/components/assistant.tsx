@@ -119,6 +119,24 @@ export function AssistantPanel({ onClose, full = false }: { onClose?: () => void
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, busy]);
+  // Seti said it would tell you when an invoice gets paid: check for that while the chat is open.
+  useEffect(() => {
+    if (!conversation) return;
+    let stopped = false;
+    const check = () =>
+      api<{ messages: Message[] }>(`/v1/assistant/conversations/${conversation}/updates`)
+        .then((r) => {
+          if (stopped || !r.messages.length) return;
+          setMessages((m) => [...m, ...r.messages.filter((n) => !m.some((x) => x.id === n.id))]);
+        })
+        .catch(() => undefined);
+    void check();
+    const timer = setInterval(check, 5000);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, [conversation]);
 
   const send = useCallback(
     async (value: string, choice?: string) => {

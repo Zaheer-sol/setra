@@ -201,7 +201,9 @@ describe("answering from real payment data", () => {
     const rows = Object.fromEntries(rec.rows);
     expect(rows).toMatchObject({ Customer: "Acme Ltd", Invoice: inv.number, Purpose: "Website Development", "Amount received": "250.00 USDC", "Payment status": "Matched & confirmed", Reference: p.id });
     expect(rows.Network).toBe("Monad Testnet (chain 10143)");
-    expect(r.message.blocks.some((b: any) => b.type === "text" && /doesn't assign tax/.test(b.text))).toBe(true);
+    // And how it landed in the books: both sides of the entry.
+    const journal = r.message.blocks.find((b: any) => b.type === "record" && b.title === "Journal lines");
+    expect(journal.rows.map((row: string[]) => row[1]).join(" ")).toMatch(/debit 250\.00.*credit 250\.00|credit 250\.00.*debit 250\.00/);
   });
 
   it("moves a payment to the right invoice only after confirmation", async () => {
@@ -243,6 +245,65 @@ describe("conversation", () => {
     expect(miss2.message.blocks[0].text).not.toBe(miss1.message.blocks[0].text);
 
     expect((await ask(s, "thanks", { conversation: hi.conversation_id })).message.blocks).toHaveLength(1);
+  });
+});
+
+describe("keeping the promise to say when they pay", () => {
+  it("tells you in the same conversation when a payment request Seti made gets paid, once", async () => {
+    const s = await signup();
+    await setupWorkspace(s);
+    const asked = await ask(s, "Create a $250 USDC payment request for Acme Ltd for website development");
+    const done = await decide(s, block(asked, "confirm").actionId, "confirm");
+    const card = done.message.blocks.find((b: any) => b.type === "payment_request");
+    expect(done.message.blocks.find((b: any) => b.type === "text").text).toMatch(/let you know as soon as they pay/);
+    const updates = () => call("GET", `/v1/assistant/conversations/${asked.conversation_id}/updates`, auth(s)).then((r) => r.data.messages);
+    expect(await updates()).toEqual([]);
+
+    await pay(s, { scenario: "exact", invoice_id: card.invoice.id });
+    const news = await updates();
+    expect(news).toHaveLength(1);
+    expect(news[0].blocks[0].text).toBe(`Acme Ltd just paid ${card.invoice.number}: 250.00 USDC. It's matched and in your books.`);
+    expect(news[0].blocks[1]).toMatchObject({ type: "payment", title: "Payment received" });
+    // Said once, and it stays in the conversation.
+    expect(await updates()).toEqual([]);
+    const latest = (await call("GET", "/v1/assistant/conversations/latest", auth(s))).data;
+    expect(latest.messages.at(-1).blocks[0].text).toMatch(/just paid/);
+    // Nobody else can read or trigger it.
+    const other = await signup("Other Co");
+    expect((await call("GET", `/v1/assistant/conversations/${asked.conversation_id}/updates`, auth(other))).data.messages).toEqual([]);
+  });
+});
+
+describe("accounting help", () => {
+  it("answers tax, balance sheet and terms, and classifies unexplained money only after confirmation", async () => {
+    const s = await signup();
+    const { acme } = await setupWorkspace(s);
+    const inv = (await call("POST", "/v1/invoices", auth(s), { customer_id: acme.id, title: "Website", amount: "1075.00", tax: "75.00" })).data;
+    await pay(s, { scenario: "exact", invoice_id: inv.id });
+    await pay(s, { scenario: "unknown", amount: "740.00", from_address: randomAddress() });
+
+    const taxReply = await ask(s, "How much tax do I owe?");
+    expect(block(taxReply, "summary")).toMatchObject({ title: "Sales tax", highlight: { value: "$75.00" } });
+
+    const sheet = await ask(s, "Show me my balance sheet");
+    expect(block(sheet, "text").text).toMatch(/owns \$[\d,.]+ and owes \$[\d,.]+/);
+
+    const term = await ask(s, "What is accounts receivable?");
+    expect(block(term, "text").text).toMatch(/money customers owe you/);
+
+    const record = await ask(s, `How was ${inv.number} recorded in the books?`);
+    const journal = record.message.blocks.find((b: any) => b.type === "record" && b.title === "Journal lines");
+    expect(journal.rows.length).toBeGreaterThanOrEqual(2);
+
+    const top = await ask(s, "Who are my top customers?");
+    expect(block(top, "text").text).toMatch(/^Acme Ltd paid you the most/);
+
+    const proposal = await ask(s, "Classify the $740 as an owner contribution");
+    const confirm = block(proposal, "confirm");
+    expect(confirm.title).toBe("Classify this money received as Owner's Equity?");
+    expect((await call("GET", "/v1/accounting/unclassified", auth(s))).data.receipts).toHaveLength(1);
+    await decide(s, confirm.actionId, "confirm");
+    expect((await call("GET", "/v1/accounting/unclassified", auth(s))).data.receipts).toHaveLength(0);
   });
 });
 

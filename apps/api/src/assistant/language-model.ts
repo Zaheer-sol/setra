@@ -65,6 +65,12 @@ const intentSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("fin_health") }),
   z.object({ kind: z.literal("fin_unclassified") }),
   z.object({ kind: z.literal("fin_briefing") }),
+  z.object({ kind: z.literal("fin_tax"), period: finPeriod }),
+  z.object({ kind: z.literal("fin_balance_sheet") }),
+  z.object({ kind: z.literal("fin_close"), month: opt(monthField), year: opt(z.number().int().min(2020).max(2100)), current: opt(z.boolean()) }),
+  z.object({ kind: z.literal("fin_top_customers"), period: finPeriod }),
+  z.object({ kind: z.literal("fin_export") }),
+  z.object({ kind: z.literal("classify"), amount: amountField, target: opt(text) }),
   z.object({ kind: z.literal("record_expense"), amount: amountField, title: opt(text), vendor: opt(text), paidFrom: opt(z.enum(["bank", "owner"])) }),
   z.object({ kind: z.literal("record_bill"), amount: amountField, vendor: opt(text), title: opt(text), number: opt(text), due: opt(due) }),
   z.object({ kind: z.literal("close_period"), month: opt(monthField), year: opt(z.number().int().min(2020).max(2100)), last: opt(z.boolean()) }),
@@ -93,6 +99,12 @@ const SYSTEM = `You are Seti, the financial operations assistant inside Setra. U
 {"kind":"fin_health"}  are the books in order
 {"kind":"fin_unclassified"}  money that needs classifying
 {"kind":"fin_briefing"}  a useful overview of what the owner should focus on now
+{"kind":"fin_tax","period":"month|last_month|quarter|year|last_year"}  sales tax / VAT collected and owed
+{"kind":"fin_balance_sheet"}  what the business owns and owes
+{"kind":"fin_close","month"?,"year"?,"current"?}  what's left before a month can be closed
+{"kind":"fin_top_customers","period":"month|last_month|quarter|year|last_year"}  which customers paid the most
+{"kind":"fin_export"}  getting the books to an accountant, QuickBooks or Xero
+{"kind":"classify","amount"?,"target"?}  say what a specific unexplained amount was ("the $740 was an owner contribution")
 {"kind":"record_expense","amount"?,"title"?,"vendor"?,"paidFrom"?:"bank|owner"}
 {"kind":"record_bill","amount"?,"vendor"?,"title"?,"number"?,"due"?}
 {"kind":"close_period","month"?,"year"?,"last"?}  close the books for a month
@@ -170,6 +182,8 @@ function normalized(message: string, raw: z.infer<typeof intentSchema>, history:
       };
     case "who_sent":
       return { kind: "who_sent", amount: amount(raw.amount) };
+    case "classify":
+      return { kind: "classify", amount: amount(raw.amount), target: clean(stated(message, raw.target), 80) };
     case "record_bill":
       return { kind: "record_bill", amount: amount(raw.amount), vendor: clean(stated(message, raw.vendor)), title: titled(raw.title), number: stated(message, raw.number), due: raw.due };
     case "guidance":

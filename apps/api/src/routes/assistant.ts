@@ -5,7 +5,7 @@ import type { Client } from "@setra/database";
 import { audit } from "@setra/engine";
 import { can } from "../lib/principal";
 import { idParam, route } from "../lib/route";
-import { resolveAction, respond, formatAmount, type AssistantContext, type Pending } from "../assistant/orchestrator";
+import { paymentUpdate, resolveAction, respond, formatAmount, type AssistantContext, type Pending } from "../assistant/orchestrator";
 import { MAX_MESSAGE, safeTimeZone } from "../assistant/intent-parser";
 import type { Block } from "../assistant/blocks";
 
@@ -143,6 +143,72 @@ export function assistantRoutes(app: FastifyInstance) {
         const messages = (await c.query("SELECT id, role, text, blocks, created_at FROM assistant_messages WHERE conversation_id = $1 ORDER BY created_at DESC LIMIT 60", [conv.id])).rows.reverse();
         return { conversation_id: conv.id, messages };
       });
+    }
+  });
+
+  // Seti promised to say when an invoice gets paid ("I'll let you know as soon as they pay"). This
+  // keeps that promise: payments for invoices it's watching in this conversation become Seti
+  // messages, once each, saved so they're waiting even if the chat was closed when the money came in.
+  route(app, {
+    method: "GET",
+    url: "/v1/assistant/conversations/:id/updates",
+    summary: "New Seti messages about payments for invoices it's watching in this conversation",
+    tags: ["assistant"],
+    permission: "read",
+    sessionOnly: true,
+    params: idParam,
+    rateLimit: { max: 120, timeWindow: "1 minute" },
+    handler: async ({ params, principal, organizationId, environment, tx, request }) => {
+      if (principal.kind !== "user") throw new Error("unreachable");
+      const pending = await tx(async (c) => {
+        const conv = (await c.query("SELECT id FROM assistant_conversations WHERE id = $1 AND organization_id = $2 AND environment = $3 AND user_id = $4", [params.id, organizationId, environment, principal.userId])).rows[0];
+        if (!conv) return [];
+        // Invoices Seti created here, or said it would watch, and from when.
+        const watched = (
+          await c.query(
+            `SELECT inv_id, min(since) AS since FROM (
+               SELECT b->'invoice'->>'id' AS inv_id, m.created_at AS since
+                 FROM assistant_messages m, jsonb_array_elements(m.blocks) b
+                WHERE m.conversation_id = $1 AND m.role = 'assistant' AND b->>'type' = 'payment_request'
+               UNION ALL
+               SELECT i->>'id', m.created_at
+                 FROM assistant_messages m, jsonb_array_elements(m.blocks) b, jsonb_array_elements(b->'items') i
+                WHERE m.conversation_id = $1 AND m.role = 'assistant' AND b->>'type' = 'invoices'
+                  AND m.blocks::text LIKE '%let you know as soon as a payment comes in%'
+             ) w WHERE inv_id IS NOT NULL GROUP BY inv_id`,
+            [conv.id]
+          )
+        ).rows as Array<{ inv_id: string; since: Date }>;
+        if (!watched.length) return [];
+        const events = (
+          await c.query(
+            `SELECT fe.id, fe.type, fe.payment_id, fe.invoice_id, fe.data, fe.created_at FROM financial_events fe
+              WHERE fe.organization_id = $1 AND fe.environment = $2 AND fe.type IN ('PAYMENT_MATCHED','PARTIALLY_PAID','OVERPAID')
+                AND fe.invoice_id = ANY($3::text[])
+                AND NOT EXISTS (SELECT 1 FROM assistant_messages m WHERE m.conversation_id = $4 AND m.intent = 'payment_update:' || fe.id)
+              ORDER BY fe.created_at`,
+            [organizationId, environment, watched.map((w) => w.inv_id), conv.id]
+          )
+        ).rows as Row[];
+        const since = new Map(watched.map((w) => [w.inv_id, new Date(w.since).getTime()]));
+        return events.filter((e) => new Date(e.created_at).getTime() >= (since.get(e.invoice_id) ?? Infinity) - 1000);
+      });
+      if (!pending.length) return { messages: [] };
+      const ctx = { app, cookie: String(request.headers.cookie ?? ""), organizationId, environment, userId: principal.userId, can: (p: Parameters<typeof can>[1]) => can(principal, p), tz: "UTC", now: new Date(), messageId: params.id, conversationId: params.id, pending: null } as AssistantContext;
+      const messages = [];
+      for (const e of pending) {
+        const blocks = await paymentUpdate(ctx, e);
+        const saved = await tx(async (c) => {
+          // Two tabs polling at once must not announce the same payment twice.
+          await c.query("SELECT pg_advisory_xact_lock(hashtext($1))", [`seti-update:${params.id}:${e.id}`]);
+          const done = (await c.query("SELECT 1 FROM assistant_messages WHERE conversation_id = $1 AND intent = $2", [params.id, `payment_update:${e.id}`])).rows[0];
+          if (done) return null;
+          await c.query("UPDATE assistant_conversations SET updated_at = now() WHERE id = $1", [params.id]);
+          return addMessage(c, organizationId, params.id, "assistant", "", `payment_update:${e.id}`, blocks);
+        });
+        if (saved) messages.push(saved);
+      }
+      return { messages };
     }
   });
 

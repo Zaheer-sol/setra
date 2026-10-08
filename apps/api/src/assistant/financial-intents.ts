@@ -1,6 +1,6 @@
 import type { Block, Row } from "./blocks";
 import { api, createAction, formatAmount, qs, type AssistantContext, type Reply } from "./orchestrator";
-import { finRange, localDate, resolveDue, type FinPeriod, type Intent } from "./intent-parser";
+import { finRange, localDate, resolveDue, type FinPeriod, type GlossaryTopic, type Intent } from "./intent-parser";
 
 /**
  * Seti's financial intelligence. Every number comes from Setra's accounting API (the same posted
@@ -36,7 +36,8 @@ function noAccess(ctx: AssistantContext, what = "the books"): Reply | null {
 }
 
 export async function financial(ctx: AssistantContext, intent: Intent): Promise<Reply> {
-  const denied = ["record_expense", "record_bill", "close_period"].includes(intent.kind) ? null : noAccess(ctx);
+  if (intent.kind === "explain") return explain(intent.topic);
+  const denied = ["record_expense", "record_bill", "close_period", "classify"].includes(intent.kind) ? null : noAccess(ctx);
   if (denied) return denied;
   switch (intent.kind) {
     case "fin_pl":
@@ -55,6 +56,18 @@ export async function financial(ctx: AssistantContext, intent: Intent): Promise<
       return unclassified(ctx);
     case "fin_briefing":
       return briefing(ctx);
+    case "fin_tax":
+      return tax(ctx, intent.period);
+    case "fin_balance_sheet":
+      return balanceSheet(ctx);
+    case "fin_close":
+      return closeStatus(ctx, intent);
+    case "fin_top_customers":
+      return topCustomers(ctx, intent.period);
+    case "fin_export":
+      return { intent: "fin_export", pending: null, blocks: [{ type: "text", text: "Your accountant can load Setra's books straight into QuickBooks or Xero. Open Export, pick the dates and the format, and send them the file. Only posted entries go in, in US dollars, with the chart of accounts alongside." }, { type: "notice", tone: "info", title: "Export for your accountant", text: "Journal entries and the chart of accounts, in QuickBooks or Xero import layouts, or as CSV.", link: { label: "Open Export", href: "/app/accounting/export" } }] };
+    case "classify":
+      return classify(ctx, intent);
     case "record_expense":
       return recordExpense(ctx, intent);
     case "record_bill":
@@ -240,6 +253,186 @@ async function unclassified(ctx: AssistantContext): Promise<Reply> {
     pending: null,
     blocks: [{ type: "summary", title: "Needs a decision", rows: [["Received, not identified", `${u.receipts.length} (${usd(sum(u.receipts))})`], ["Sent, not classified", `${u.outgoing.length} (${usd(sum(u.outgoing))})`]], highlight: { label: "Waiting", value: String(u.receipts.length + u.outgoing.length) }, note: "Held in holding accounts. Never counted as income or spending until you decide.", link: { label: "Decide now", href: "/app/accounting/classify" } }]
   };
+}
+
+// ── tax, balance sheet, month close, customers ───────────────────────────────────────────────
+
+async function tax(ctx: AssistantContext, period: FinPeriod): Promise<Reply> {
+  const r = finRange(period, ctx.now, ctx.tz);
+  const accounts = (await api<{ data: Any[] }>(ctx, "GET", "/v1/accounting/accounts")).data;
+  const account = accounts.find((a) => a.system_key === "taxes_payable") ?? accounts.find((a) => a.code === "2200" && a.type === "liability");
+  if (!account) return { intent: "fin_tax", pending: null, blocks: [{ type: "notice", tone: "info", title: "There's no Taxes Payable account in your chart yet." }] };
+  const gl = await api(ctx, "GET", `/v1/accounting/ledger?${qs({ account_id: account.id, from: r.from, to: r.to, limit: 500 })}`);
+  const collected = gl.lines.reduce((sum: bigint, l: Any) => sum + micro(l.credit) - micro(l.debit), 0n);
+  const held = micro(account.balance);
+  if (held === 0n && collected === 0n) {
+    return { intent: "fin_tax", pending: null, blocks: [{ type: "text", text: "No sales tax is recorded yet. When an invoice or a store order includes tax, Setra keeps that part out of your income and holds it in Taxes Payable, because it belongs to the government." }] };
+  }
+  return {
+    intent: "fin_tax",
+    pending: null,
+    blocks: [
+      { type: "text", text: `You collected ${usd(dec(collected))} in sales tax ${lc(r.label)}. In total, ${usd(dec(held))} is set aside in Taxes Payable: money customers paid you that belongs to the tax office, so it isn't counted as income.` },
+      { type: "summary", title: "Sales tax", rows: [[`Collected, ${lc(r.label)}`, usd(dec(collected))], ["Held in Taxes Payable", usd(dec(held))]], highlight: { label: "Set aside for tax", value: usd(dec(held)) }, note: "Setra records the tax you charged. Filing returns and tax you can claim back on purchases stay with your accountant.", link: { label: "See the entries", href: `/app/accounting/accounts/${account.id}` } }
+    ]
+  };
+}
+
+async function balanceSheet(ctx: AssistantContext): Promise<Reply> {
+  const b = await api(ctx, "GET", "/v1/accounting/reports/balance-sheet");
+  const top = (list: Any[], n = 3) => list.filter((a) => a.amount !== "0.00").sort((x, y) => (micro(y.amount) > micro(x.amount) ? 1 : -1)).slice(0, n);
+  const rows: Row[] = [["What you own (assets)", usd(b.assets.total)], ...top(b.assets.accounts).map((a): Row => [`  ${a.name}`, usd(a.amount)]), ["What you owe (liabilities)", usd(b.liabilities.total)], ...top(b.liabilities.accounts).map((a): Row => [`  ${a.name}`, usd(a.amount)]), ["Left for the owners (equity)", usd(b.equity.total)]];
+  return {
+    intent: "fin_balance_sheet",
+    pending: null,
+    blocks: [
+      { type: "text", text: `As of ${b.as_of}, the business owns ${usd(b.assets.total)} and owes ${usd(b.liabilities.total)}, so ${usd(b.equity.total)} belongs to the owners.` },
+      { type: "summary", title: "Balance sheet", rows, highlight: { label: "Equity", value: usd(b.equity.total) }, note: b.balanced ? "Both sides add up: what you own equals what you owe plus what's yours." : "The two sides don't add up yet. Open Books to see why.", link: { label: "Open balance sheet", href: "/app/reports/balance-sheet" } }
+    ]
+  };
+}
+
+async function closeStatus(ctx: AssistantContext, intent: Extract<Intent, { kind: "fin_close" }>): Promise<Reply> {
+  const d = localDate(ctx.now, ctx.tz);
+  let year = d.year;
+  let month = d.month;
+  if (intent.month) {
+    month = intent.month;
+    year = intent.year ?? (intent.month > d.month ? d.year - 1 : d.year);
+  } else if (!intent.current) {
+    month = d.month === 1 ? 12 : d.month - 1;
+    year = d.month === 1 ? d.year - 1 : d.year;
+  }
+  const key = `${year}-${String(month).padStart(2, "0")}`;
+  const label = new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+  const m = await api(ctx, "GET", `/v1/accounting/periods/${key}/summary`);
+  const link = { label: `Open ${label}`, href: `/app/accounting/periods/${key}` };
+  if (m.status === "closed") return { intent: "fin_close", pending: null, blocks: [{ type: "notice", tone: "success", title: `${label} is already closed.`, text: "Nothing more can be posted into it.", link }] };
+  const open = m.checks.filter((c: Any) => c.status !== "ok" && c.key !== "ended");
+  const rows: Row[] = open.map((c: Any): Row => [c.label, c.detail]);
+  if (!m.ended) {
+    return { intent: "fin_close", pending: null, blocks: [{ type: "text", text: `${label} isn't over yet, so it can't be closed. ${open.length ? `So far, ${open.length} thing${open.length === 1 ? "" : "s"} would need sorting out first.` : "So far everything checks out."}` }, ...(open.length ? [{ type: "summary" as const, title: `Before closing ${label}`, rows, highlight: { label: "To sort out", value: String(open.length) }, link }] : [])] };
+  }
+  if (!open.length) {
+    return { intent: "fin_close", pending: null, blocks: [{ type: "text", text: `${label} is ready to close. Closing locks it, so its numbers stay fixed for your accountant.` }, { type: "choice", prompt: "Want me to?", options: [{ label: `Close ${label}`, value: "@text" }] }] };
+  }
+  return {
+    intent: "fin_close",
+    pending: null,
+    blocks: [
+      { type: "text", text: `${open.length} thing${open.length === 1 ? "" : "s"} to sort out before closing ${label}. ${m.can_close ? "None of them block closing, but it's worth a look first." : "At least one blocks closing."}` },
+      { type: "summary", title: `Before closing ${label}`, rows, highlight: { label: m.can_close ? "Can close" : "Can't close yet", value: String(open.length) }, link }
+    ]
+  };
+}
+
+async function topCustomers(ctx: AssistantContext, period: FinPeriod): Promise<Reply> {
+  const r = finRange(period, ctx.now, ctx.tz);
+  const list = (await api<{ data: Any[] }>(ctx, "GET", `/v1/payments?${qs({ status: "settled", limit: 100, created_gte: `${r.from}T00:00:00Z`, created_lte: `${r.to}T23:59:59Z` })}`)).data;
+  const by = new Map<string, { name: string; total: bigint; count: number }>();
+  for (const p of list) {
+    if (!p.customer?.id) continue;
+    const e = by.get(p.customer.id) ?? { name: p.customer.name, total: 0n, count: 0 };
+    e.total += micro(String(p.amount).replace(/,/g, ""));
+    e.count += 1;
+    by.set(p.customer.id, e);
+  }
+  const ranked = [...by.values()].sort((a, b) => (b.total > a.total ? 1 : -1)).slice(0, 5);
+  if (!ranked.length) return { intent: "fin_top_customers", pending: null, blocks: [{ type: "text", text: `No identified customer has paid ${lc(r.label)} yet.` }] };
+  const total = [...by.values()].reduce((s, e) => s + e.total, 0n);
+  const share = (v: bigint) => (total > 0n ? ` (${Number((v * 1000n) / total) / 10}%)` : "");
+  return {
+    intent: "fin_top_customers",
+    pending: null,
+    blocks: [
+      { type: "text", text: `${ranked[0]!.name} paid you the most ${/^(This|Last|Same)\b/.test(r.label) ? lc(r.label) : `in ${r.label}`}: ${usd(dec(ranked[0]!.total))}${total > 0n ? `, ${Number((ranked[0]!.total * 1000n) / total) / 10}% of what identified customers paid` : ""}.` },
+      { type: "summary", title: `Top customers, ${lc(r.label)}`, rows: ranked.map((e): Row => [e.name, `${usd(dec(e.total))} · ${e.count} payment${e.count === 1 ? "" : "s"}${share(e.total)}`]), highlight: { label: "Paid by customers", value: usd(dec(total)) }, note: "Money received and matched to a customer. Payments still waiting for review aren't included.", link: { label: "Customers", href: "/app/customers" } }
+    ]
+  };
+}
+
+// ── classifying money from the chat ───────────────────────────────────────────────────────────
+
+/** What someone calls the money, mapped to an account in the chart. */
+function accountForPhrase(accounts: Any[], phrase: string, direction: "in" | "out"): Any | undefined {
+  const t = phrase.toLowerCase();
+  const byName = accounts.find((a) => !a.archived && a.name.length > 3 && t.includes(a.name.toLowerCase().replace(/^the /, "")));
+  if (byName) return byName;
+  const key = (k: string) => accounts.find((a) => a.system_key === k);
+  const code = (c: string) => accounts.find((a) => a.code === c);
+  if (/\b(owner|founder|shareholder|capital|my own money|personal)\b/.test(t)) return key("owner_equity");
+  if (/\bloan|borrow/.test(t)) return code("2300");
+  if (/\b(deposit|prepayment|advance|upfront)\b/.test(t) && direction === "in") return code("2030");
+  if (/\b(transfer|moved|between (?:my|our) (?:own )?accounts?|to (?:my|our) (?:exchange|bank))\b/.test(t)) return key("bank");
+  if (direction === "out") return suggestAccount(accounts.filter((a) => ["expense", "cogs"].includes(a.type) && !a.archived), t);
+  if (/\b(sale|sales|income|revenue|consulting|service)\b/.test(t)) return key("sales");
+  return undefined;
+}
+
+async function classify(ctx: AssistantContext, intent: Extract<Intent, { kind: "classify" }>): Promise<Reply> {
+  if (!ctx.can("financials:write")) return { intent: "classify", pending: null, blocks: [{ type: "notice", tone: "warning", title: "Your role can't classify money." }] };
+  if (!intent.amount || !intent.target) return { intent: "classify", pending: null, blocks: [{ type: "text", text: "Tell me the amount and what it was. For example: “Classify the $740 as an owner contribution” or “Mark the $300 transfer as rent.”" }] };
+  const u = await api(ctx, "GET", "/v1/accounting/unclassified");
+  const want = micro(intent.amount);
+  const receipts = u.receipts.filter((x: Any) => micro(x.amount) === want).map((x: Any) => ({ ...x, direction: "in" as const }));
+  const outgoing = u.outgoing.filter((x: Any) => micro(x.amount) === want).map((x: Any) => ({ ...x, direction: "out" as const }));
+  const found = [...receipts, ...outgoing];
+  if (!found.length) return { intent: "classify", pending: null, blocks: [{ type: "notice", tone: "info", title: `Nothing waiting to be classified is exactly ${usd(intent.amount)}.`, text: "Ask “What needs classifying?” to see what's open.", link: { label: "Needs a decision", href: "/app/accounting/classify" } }] };
+  if (found.length > 1) return { intent: "classify", pending: null, blocks: [{ type: "notice", tone: "info", title: `${found.length} unclassified amounts are ${usd(intent.amount)}.`, text: "Pick the right one on the Needs a decision page, so the wrong transfer isn't classified.", link: { label: "Needs a decision", href: "/app/accounting/classify" } }] };
+  const item = found[0]!;
+  const accounts = (await api<{ data: Any[] }>(ctx, "GET", "/v1/accounting/accounts")).data;
+  const account = accountForPhrase(accounts, intent.target, item.direction);
+  if (!account) return { intent: "classify", pending: null, blocks: [{ type: "notice", tone: "info", title: `I'm not sure which account “${intent.target}” is.`, text: "Name an account from your chart, for example Owner's Equity, Loans Payable, Rent or Software & Subscriptions.", link: { label: "Chart of accounts", href: "/app/accounting/accounts" } }] };
+  const when = new Date(item.direction === "in" ? item.received_at : item.sent_at).toISOString().slice(0, 10);
+  const other = item.direction === "in" ? item.from_address : item.to_address;
+  const action = await createAction(ctx, "classify_transaction", { payment_id: item.direction === "in" ? item.id : null, outgoing_transfer_id: item.direction === "out" ? item.id : null, account_id: account.id, reason: `Classified with Seti: ${intent.target}`.slice(0, 200) });
+  return {
+    intent: "classify",
+    pending: null,
+    blocks: [
+      {
+        type: "confirm",
+        actionId: action.id,
+        title: `Classify this ${item.direction === "in" ? "money received" : "transfer"} as ${account.name}?`,
+        rows: [
+          ["Amount", `${usd(item.amount)} ${item.asset}`],
+          [item.direction === "in" ? "Received" : "Sent", when],
+          [item.direction === "in" ? "From" : "To", `${String(other).slice(0, 6)}…${String(other).slice(-4)}`],
+          ["Account", `${account.code} ${account.name}`],
+          ["What it does", item.direction === "in" ? "Moves it out of Payments to Identify and into this account" : "Moves it out of Transfers to Classify and into this account"],
+          ["Undo", "Any classification can be undone from Needs a decision"]
+        ],
+        confirmLabel: "Classify",
+        testMode: ctx.environment === "test",
+        expiresAt: action.expires_at
+      }
+    ]
+  };
+}
+
+// ── explaining accounting ─────────────────────────────────────────────────────────────────────
+
+const EXPLAIN: Record<GlossaryTopic, { text: string; see?: string }> = {
+  cash_vs_accrual: { text: "They're two ways to decide when money counts. Cash basis counts income when the money arrives and costs when you pay them. Accrual counts income when you send the invoice and costs when you're billed, even if nothing has moved yet. Accrual shows what you really earned in a month; cash shows what actually came in. Setra keeps whichever one you chose when you set up your books.", see: "How much profit did we make this month?" },
+  accounts_receivable: { text: "Accounts receivable is money customers owe you for invoices you've sent but they haven't paid. It counts as something you own, because you expect to collect it. In Setra it's the total of your open invoices.", see: "Who owes me money?" },
+  accounts_payable: { text: "Accounts payable is money you owe vendors for bills you've approved but haven't paid yet. It's a debt, so it sits on the \"what you owe\" side of the balance sheet.", see: "What do we owe vendors?" },
+  balance_sheet: { text: "A balance sheet is a snapshot of the business on one day: what it owns (assets, like cash and money customers owe you), what it owes (liabilities, like unpaid bills and tax you've collected), and what's left over for the owners (equity). The two sides always add up.", see: "Show me my balance sheet" },
+  profit_and_loss: { text: "A profit and loss report covers a stretch of time, like a month. Money you earned (revenue), minus what it cost to run the business (expenses), equals profit. If costs are bigger, it's a loss.", see: "How much profit did we make this month?" },
+  double_entry: { text: "In double-entry bookkeeping every amount is written down twice: once where the money came from, once where it went. When a customer pays $100, cash goes up $100 and what they owe you goes down $100. Both sides always match, so a mistake shows up as books that don't balance. Setra writes both sides for you.", see: "Are my books in order?" },
+  reconciliation: { text: "Reconciliation means checking that two records of the same money agree, like your books against your bank statement, or against your wallet's real balance on Monad. If they differ, something was missed or counted twice. Setra checks your wallets against Monad for you.", see: "Are my books in order?" },
+  taxes_payable: { text: "Taxes Payable is sales tax or VAT you charged customers. It's part of what they paid you, but it belongs to the government, so it isn't income. Setra holds it there until you pay it over.", see: "How much tax do I owe?" },
+  bill_vs_expense: { text: "Use a bill when you owe someone and will pay later, like a supplier invoice due in 30 days. Use an expense when it's already paid, like a subscription charged today. A bill waits as money you owe until you record the payment; an expense is done in one step." },
+  payments_to_identify: { text: "Payments to Identify is a holding place for money that arrived but couldn't be tied to an invoice yet. It isn't counted as income until you say what it was, so your profit never includes money nobody can explain.", see: "What needs classifying?" },
+  closing: { text: "Closing a month means sorting out what's left, then locking it so nothing in it can change. That month's reports stay fixed, which is what accountants and tax filings rely on. Anything that turns up late goes into the next open month.", see: "Is last month ready to close?" },
+  customer_credit: { text: "A customer credit is money a customer paid beyond what they owed. Setra keeps it as money you owe them back, until you refund it or put it toward their next invoice." },
+  finality: { text: "Finality is the point after which a blockchain payment can't be undone. On Monad it takes under two seconds. Setra shows a payment as detected straight away, but only records it once it's final." }
+};
+
+function explain(topic: GlossaryTopic): Reply {
+  const e = EXPLAIN[topic];
+  const blocks: Block[] = [{ type: "text", text: e.text }];
+  if (e.see) blocks.push({ type: "choice", prompt: "See yours", options: [{ label: e.see, value: "@text" }] });
+  return { intent: "explain", pending: null, blocks };
 }
 
 /** A compact CFO-style briefing: facts from the ledger, collections and payment operations together. */
@@ -468,6 +661,10 @@ export async function applyFinancialAction(ctx: AssistantContext, action: Any): 
       { type: "notice", tone: "success", title: b.status === "approved" ? `Bill ${b.number} approved. It's now a payable.` : `Bill ${b.number} saved for approval.` },
       { type: "record", title: `${b.vendor.name} · ${b.number}`, rows: [["For", b.title], ["Amount", `$${formatAmount(b.amount)}`], ["Due", b.due_date ?? "No due date"]], links: [{ label: "Open bill", href: `/app/bills/${b.id}` }] }
     ];
+  }
+  if (action.kind === "classify_transaction") {
+    const c = await api(ctx, "POST", "/v1/accounting/classifications", { payment_id: p.payment_id, outgoing_transfer_id: p.outgoing_transfer_id, account_id: p.account_id, reason: p.reason }, action.id);
+    return [{ type: "notice", tone: "success", title: "Classified and posted to the books.", text: c?.account?.name ? `Recorded under ${c.account.code} ${c.account.name}.` : undefined, link: { label: "Needs a decision", href: "/app/accounting/classify" } }];
   }
   if (action.kind === "close_period") {
     await api(ctx, "POST", "/v1/accounting/periods/close", { month: p.month });

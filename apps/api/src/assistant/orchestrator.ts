@@ -212,7 +212,7 @@ function paymentNote(p: Any): string | undefined {
 const EXAMPLES = [
   ["What should I focus on today?", "How much cash do we have?", "What's outstanding?", "Create a $250 payment request for website design, due Friday"],
   ["Why is profit different from last month?", "What do we owe vendors?", "Who sent my last unknown payment?", "Record a $49 expense for Vercel hosting paid from the bank"],
-  ["Are the books in order?", "What needs classifying?", "Anything that needs review?", "What does accrual accounting mean?"]
+  ["How much tax do I owe?", "Show me my balance sheet", "Is last month ready to close?", "What's the difference between cash and accrual?"]
 ];
 const examples = (set: number, prompt = "For example"): Block => ({ type: "choice", prompt, options: EXAMPLES[set % EXAMPLES.length]!.map((label) => ({ label, value: "@text" })) });
 
@@ -221,10 +221,10 @@ const CAPABILITIES = [
   "",
   "• Payments: who paid, what's outstanding or overdue, and what's waiting for review",
   "• Invoices: turn one sentence into a payment request you can send",
-  "• Books: profit, cash, what you owe vendors, and whether the books tie out",
-  "• Spending: record an expense or a vendor bill",
-  "• Month end: close a month once its checks pass",
-  "• Questions: what an accounting term or a Setra status means"
+  "• Books: profit, cash, sales tax, your balance sheet, and whether the books tie out",
+  "• Spending: record an expense or a vendor bill, or say what an unexplained amount was",
+  "• Month end: what's left before closing, then close it; export for your accountant",
+  "• Questions: what an accounting term means, in plain words"
 ].join("\n");
 const MORE_CAPABILITIES = [
   "A few things people don't expect:",
@@ -359,6 +359,13 @@ async function respondInner(ctx: AssistantContext, text: string, choice?: string
     case "fin_health":
     case "fin_unclassified":
     case "fin_briefing":
+    case "fin_tax":
+    case "fin_balance_sheet":
+    case "fin_close":
+    case "fin_top_customers":
+    case "fin_export":
+    case "classify":
+    case "explain":
     case "record_expense":
     case "record_bill":
     case "close_period":
@@ -544,7 +551,7 @@ function ask(ctx: AssistantContext, draft: Draft, missing: "customer" | "amount"
   return { intent: "create_request", pending: { awaiting: "create", missing, draft, expiresAt: expires(ctx.now) }, blocks: [{ type: "text", text: question }] };
 }
 
-export async function createAction(ctx: AssistantContext, kind: "create_payment_request" | "correct_payment" | "record_expense" | "record_bill" | "close_period", payload: Any) {
+export async function createAction(ctx: AssistantContext, kind: "create_payment_request" | "correct_payment" | "record_expense" | "record_bill" | "close_period" | "classify_transaction", payload: Any) {
   const id = newId("assistantAction");
   const expiresAt = expires(ctx.now);
   await withTenant(ctx.organizationId, (c) =>
@@ -605,6 +612,25 @@ async function createPaymentRequest(ctx: AssistantContext, action: Any): Promise
     { type: "payment_request", invoice: invoiceCard(invoice), testMode: ctx.environment === "test" },
     { type: "text", text: `Done. Send ${invoice.customer?.name ?? "your customer"} the link and I'll let you know as soon as they pay.` }
   ];
+}
+
+// ── keeping the promise: "I'll let you know as soon as they pay" ─────────────────────────────
+
+/** Seti's message when a payment arrives for an invoice it said it would watch. */
+export async function paymentUpdate(ctx: AssistantContext, event: Any): Promise<Block[]> {
+  const p = await api(ctx, "GET", `/v1/payments/${event.payment_id}`);
+  const d = event.data ?? {};
+  const who = d.customer?.name ?? p.customer?.name ?? "Your customer";
+  const number = d.invoice?.number ?? p.invoice_detail?.number ?? "the invoice";
+  const paid = formatAmount(d.payment?.amount ?? p.amount, d.payment?.asset ?? p.asset?.symbol);
+  const remaining = d.invoice?.amount_remaining;
+  const text =
+    event.type === "PARTIALLY_PAID"
+      ? `${who} paid part of ${number}: ${paid}.${remaining ? ` ${formatAmount(remaining, d.payment?.asset ?? "")} is still due.` : ""} It's in your books.`
+      : event.type === "OVERPAID"
+        ? `${who} paid ${number}, and sent more than was due: ${paid} in total. The extra is held as their credit until you refund it or use it.`
+        : `${who} just paid ${number}: ${paid}. It's matched and in your books.`;
+  return [{ type: "text", text }, { type: "payment", ...paymentTitle(p), payment: paymentCard(p), note: paymentNote(p) }];
 }
 
 // ── questions ─────────────────────────────────────────────────────────────────────────────────
@@ -846,14 +872,20 @@ async function accountingRecord(ctx: AssistantContext, paymentId: string): Promi
   if (p.refunds_summary?.refunded && p.refunds_summary.refunded !== "0.00") rows.push(["Refunded", formatAmount(p.refunds_summary.refunded, p.asset?.symbol)]);
   const links: Link[] = [{ label: "View payment", href: `/app/payments/${p.id}` }];
   if (!p.simulated) links.push({ label: "Export CSV", href: `/api/v1/exports/payments.csv?search=${p.transaction_hash}` });
-  return {
-    intent: "accounting",
-    pending: null,
-    blocks: [
-      { type: "record", title: "Accounting-ready payment record", rows, links },
-      { type: "text", text: "These are the facts Setra recorded. It doesn't assign tax treatment, exchange rates or journal entries." }
-    ]
-  };
+  // How it landed in the books: every journal line this payment produced, both sides.
+  const gl = ctx.can("financials:read") ? await api(ctx, "GET", `/v1/accounting/ledger?${qs({ payment_id: p.id, limit: 50 })}`).catch(() => null) : null;
+  const lines = (gl?.lines ?? []) as Any[];
+  const blocks: Block[] = [{ type: "record", title: "Accounting-ready payment record", rows, links }];
+  if (lines.length) {
+    const side = (l: Any) => (l.debit && l.debit !== "0.00" ? `debit ${formatAmount(l.debit)}` : `credit ${formatAmount(l.credit)}`);
+    blocks.push(
+      { type: "text", text: "In the books, it was written down twice, once where the money came from and once where it went, so both sides balance:" },
+      { type: "record", title: "Journal lines", rows: lines.map((l): Row => [`${l.account.code} ${l.account.name}`, side(l)]), links: [{ label: "Open the general ledger", href: `/app/accounting/ledger?payment_id=${p.id}` }] }
+    );
+  } else {
+    blocks.push({ type: "text", text: p.status === "confirming" ? "It isn't in the books yet: Setra records a payment once it's final." : "There are no journal lines for it yet." });
+  }
+  return { intent: "accounting", pending: null, blocks };
 }
 
 // ── corrections ───────────────────────────────────────────────────────────────────────────────

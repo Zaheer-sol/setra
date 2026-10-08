@@ -100,7 +100,9 @@ function invoices(b: Extract<Block, { type: "invoices" }>, intent: string, seed:
 
 function summary(b: Extract<Block, { type: "summary" }>, intent: string): string | null {
   const value = b.highlight.value;
-  const period = b.title.includes(":") ? lowerFirst(b.title.split(":")[0]!.trim()) : "";
+  // "This month" reads as "this month"; a month name or a year keeps its capital and takes "in".
+  const label = b.title.includes(":") ? b.title.split(":")[0]!.trim() : "";
+  const period = !label ? "" : /^(This|Last|Same)\b/.test(label) ? lowerFirst(label) : `in ${label}`;
   const row = (label: string) => b.rows.find((r) => r[0] === label)?.[1];
   switch (intent) {
     case "fin_cash":
