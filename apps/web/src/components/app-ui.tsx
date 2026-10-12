@@ -429,7 +429,7 @@ export function useCursorPager() {
 
 export function Field({ label, hint, error, optional, children, htmlFor, className }: { label: ReactNode; hint?: ReactNode; error?: string | null; optional?: boolean; children: ReactNode; htmlFor?: string; className?: string }) {
   return (
-    <div className={cn("grid gap-1.5", className)}>
+    <div className={cn("grid min-w-0 grid-cols-1 gap-1.5", className)}>
       <Label htmlFor={htmlFor} className="flex items-baseline justify-between gap-2 font-medium text-foreground/80">
         <span className="flex-1">{label}</span>
         {optional && <span className="font-normal text-muted-foreground">Optional</span>}
@@ -505,7 +505,7 @@ export function Select({
   );
   return (
     <UISelect value={value === "" && hasEmpty ? EMPTY : value || undefined} onValueChange={(v) => onValueChange(v === EMPTY ? "" : v)} name={name} required={required} disabled={disabled}>
-      <SelectTrigger id={id} size={size} className={cn("w-full", className)} aria-invalid={invalid || undefined} aria-label={ariaLabel}>
+      <SelectTrigger id={id} size={size} className={cn("w-full min-w-0 *:data-[slot=select-value]:min-w-0", className)} aria-invalid={invalid || undefined} aria-label={ariaLabel}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>

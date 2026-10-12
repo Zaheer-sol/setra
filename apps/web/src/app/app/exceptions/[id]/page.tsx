@@ -189,7 +189,7 @@ function ResolveForm({ exception: e, onDone }: { exception: any; onDone: () => v
   return (
     <Card title="Resolve" description="Your decision, reason and name are recorded permanently.">
       <form
-        className="grid gap-4 px-6 py-5 max-md:px-4"
+        className="grid min-w-0 grid-cols-1 gap-4 px-6 py-5 max-md:px-4 [&>*]:min-w-0"
         onSubmit={async (ev) => {
           ev.preventDefault();
           setBusy(true);
