@@ -19,3 +19,5 @@ deploy/production.env
 .next-e2e
 e2e/onchain/.stack.json
 .next-*
+tmp/
+*.tsbuildinfo

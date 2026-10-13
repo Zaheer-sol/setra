@@ -107,4 +107,4 @@ A post you can use with the pitch video or a screenshot:
 
 ## 5. Bounties
 
-[Bounty fields go here once the bounty is chosen.]
+No sponsor bounty entered. Setra is submitted to the Consumer Products & Payments track only.
