@@ -67,7 +67,7 @@ export default function TestModePage() {
             }}
           >
             {error && <Alert tone="danger">{error.message}</Alert>}
-            <ChoiceGroup label="Scenario" value={scenario} onChange={setScenario} className="sm:grid-cols-2">
+            <ChoiceGroup label="Scenario" value={scenario} onChange={(v) => { setScenario(v); setInvoiceId(""); setError(null); }} className="sm:grid-cols-2">
               {SCENARIOS.map((s) => (
                 <ChoiceCard key={s.key} id={`scenario-${s.key}`} value={s.key} selected={scenario === s.key} title={s.title} description={s.desc} />
               ))}
@@ -92,7 +92,7 @@ export default function TestModePage() {
                 <span className="text-xs text-muted-foreground">Untick to see the “Payment detected → confirming” state first.</span>
               </Label>
             </div>
-            <Button type="submit" variant="primary" loading={busy} icon={<FlaskConical />}>
+            <Button type="submit" variant="primary" loading={busy} disabled={chosen.needsInvoice && !invoiceId} icon={<FlaskConical />}>
               Send simulated payment
             </Button>
           </form>

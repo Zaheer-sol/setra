@@ -77,7 +77,7 @@ export function developerRoutes(app: FastifyInstance) {
     params: idParam,
     handler: async ({ params, tx, organizationId, environment }) =>
       tx(async (c) => {
-        const row = (await c.query("SELECT data FROM financial_events WHERE id = $1 AND organization_id = $2 AND environment = $3", [params.id, organizationId, environment])).rows[0];
+        const row = (await c.query("SELECT data, event_version, schema_version FROM financial_events WHERE id = $1 AND organization_id = $2 AND environment = $3", [params.id, organizationId, environment])).rows[0];
         if (!row) throw notFound("financial event");
         const deliveries = (
           await c.query(
@@ -85,7 +85,8 @@ export function developerRoutes(app: FastifyInstance) {
             [params.id]
           )
         ).rows;
-        return { ...row.data, webhook_deliveries: deliveries.map((d) => serializeDelivery({ ...d, payload: undefined })) };
+        // Accounting events keep their versions in the columns only.
+        return { event_version: row.event_version, schema_version: row.schema_version, ...row.data, webhook_deliveries: deliveries.map((d) => serializeDelivery({ ...d, payload: undefined })) };
       })
   });
 
